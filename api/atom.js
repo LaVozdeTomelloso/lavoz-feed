@@ -1,37 +1,49 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
-const Parser = require("rss-parser");
+const xml2js = require("xml2js");
 const { Feed } = require("feed");
-
-const parser = new Parser();
 
 module.exports = async (req, res) => {
 
   try {
 
-    // RSS ORIGINAL
-    const rss =
-      await parser.parseURL(
-        "https://lavozdetomelloso.com/rss"
+    // DESCARGAR RSS ORIGINAL
+    const rssResponse = await axios.get(
+      "https://lavozdetomelloso.com/rss",
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0"
+        }
+      }
+    );
+
+    // PARSEAR XML RSS
+    const rssData =
+      await xml2js.parseStringPromise(
+        rssResponse.data
       );
+
+    const channel =
+      rssData.rss.channel[0];
+
+    const items =
+      channel.item || [];
 
     // CREAR FEED ATOM
     const feed = new Feed({
 
       title:
-        rss.title || "La Voz de Tomelloso",
+        channel.title[0],
 
       description:
-        rss.description ||
-        "Noticias de Tomelloso y comarca",
+        channel.description[0],
 
       id:
-        rss.link ||
-        "https://lavozdetomelloso.com",
+        channel.link[0],
 
       link:
-        rss.link ||
-        "https://lavozdetomelloso.com",
+        channel.link[0],
 
       language: "es",
 
@@ -46,19 +58,28 @@ module.exports = async (req, res) => {
       },
 
       author: {
-        name: "La Voz de Tomelloso"
+        name:
+          "La Voz de Tomelloso"
       }
 
     });
 
-    // RECORRER ITEMS RSS
-    for (const item of rss.items) {
+    // RECORRER RSS
+    for (const item of items) {
 
       try {
 
-        // ABRIR NOTICIA
+        const link =
+          item.link[0];
+
+        // ENTRAR EN NOTICIA
         const response =
-          await axios.get(item.link);
+          await axios.get(link, {
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0"
+            }
+          });
 
         const $ =
           cheerio.load(response.data);
@@ -104,7 +125,7 @@ module.exports = async (req, res) => {
 
         });
 
-        // CONTENIDO HTML
+        // CONTENIDO
         const content = `
 
           ${
@@ -121,30 +142,33 @@ module.exports = async (req, res) => {
 
           <p>
             ${
-              item.contentSnippet ||
-              item.content ||
-              ""
+              item.description
+                ? item.description[0]
+                : ""
             }
           </p>
 
         `;
 
-        // AÑADIR ITEM AL FEED
+        // AÑADIR ITEM
         feed.addItem({
 
           title:
-            item.title || "",
+            item.title
+              ? item.title[0]
+              : "",
 
-          id:
-            item.link || "",
+          id: link,
 
-          link:
-            item.link || "",
+          link: link,
 
           description:
             subtitle ||
-            item.contentSnippet ||
-            "",
+            (
+              item.description
+                ? item.description[0]
+                : ""
+            ),
 
           content: content,
 
@@ -159,7 +183,9 @@ module.exports = async (req, res) => {
 
           date:
             item.pubDate
-              ? new Date(item.pubDate)
+              ? new Date(
+                  item.pubDate[0]
+                )
               : new Date()
 
         });
@@ -167,15 +193,14 @@ module.exports = async (req, res) => {
       } catch (err) {
 
         console.log(
-          "Error noticia:",
-          item.link
+          "Error noticia"
         );
 
       }
 
     }
 
-    // DEVOLVER XML ATOM
+    // DEVOLVER ATOM
     res.setHeader(
       "Content-Type",
       "application/atom+xml; charset=utf-8"

@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
       }
     );
 
-    // PARSEAR XML
+    // PARSEAR RSS XML
     const rssData =
       await xml2js.parseStringPromise(
         rssResponse.data
@@ -69,7 +69,7 @@ module.exports = async (req, res) => {
 
     });
 
-    // SOLO ÚLTIMAS 15 NOTICIAS
+    // ÚLTIMAS 15 NOTICIAS
     for (
       const item of items.slice(0, 15)
     ) {
@@ -91,11 +91,12 @@ module.exports = async (req, res) => {
         const $ =
           cheerio.load(response.data);
 
-        // TITULAR
+        // TITULAR REAL
         const title =
-          $("h1")
+          $("#titularN")
             .first()
             .text()
+            .replace(/\s+/g, " ")
             .trim();
 
         // SUBTÍTULO
@@ -103,6 +104,7 @@ module.exports = async (req, res) => {
           $("h2.subtitulo")
             .first()
             .text()
+            .replace(/\s+/g, " ")
             .trim();
 
         // AUTOR
@@ -240,7 +242,7 @@ module.exports = async (req, res) => {
             ? new Date(item.pubDate[0])
             : new Date();
 
-        // AÑADIR ITEM
+        // AÑADIR ITEM AL FEED
         feed.addItem({
 
           title: title,
@@ -280,7 +282,7 @@ module.exports = async (req, res) => {
 
     }
 
-    // DEVOLVER ATOM XML
+    // DEVOLVER XML ATOM
     res.setHeader(
       "Content-Type",
       "application/atom+xml; charset=utf-8"

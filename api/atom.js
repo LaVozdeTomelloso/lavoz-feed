@@ -134,33 +134,38 @@ module.exports = async (req, res) => {
 
         }
 
-        // CATEGORÍAS REALES DEL HEADER
+// CATEGORÍAS REALES
 let categories = [];
 
-// SOLO BLOQUE SUPERIOR DE METADATOS
-$(".titulo-secciones a").each((i, el) => {
+// SOLO CABECERA SUPERIOR
+$("span.autor")
+  .first()
+  .parent()
+  .parent()
+  .find('a[href*="/Categoria/"], a[href*="/Seccion/"]')
+  .each((i, el) => {
 
-  const text =
-    $(el)
-      .text()
-      .replace("|", "")
-      .replace(/\s+/g, " ")
-      .trim();
+    const text =
+      $(el)
+        .text()
+        .replace("|", "")
+        .replace(/\s+/g, " ")
+        .trim();
 
-  if (
-    text &&
-    !categories.some(
-      c => c.name === text
-    )
-  ) {
+    if (
+      text &&
+      !categories.some(
+        c => c.name === text
+      )
+    ) {
 
-    categories.push({
-      name: text
-    });
+      categories.push({
+        name: text
+      });
 
-  }
+    }
 
-});
+  });
         // DESCRIPCIÓN RSS
         const description =
           item.description

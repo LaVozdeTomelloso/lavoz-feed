@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
       }
     );
 
-    // PARSEAR XML RSS
+    // PARSEAR XML
     const rssData =
       await xml2js.parseStringPromise(
         rssResponse.data
@@ -47,7 +47,17 @@ module.exports = async (req, res) => {
 
       language: "es",
 
-      updated: new Date(),
+      image:
+        "https://lavozdetomelloso.com/favicon.ico",
+
+      favicon:
+        "https://lavozdetomelloso.com/favicon.ico",
+
+      copyright:
+        "La Voz de Tomelloso",
+
+      updated:
+        new Date(),
 
       generator:
         "La Voz Atom Generator",
@@ -59,20 +69,24 @@ module.exports = async (req, res) => {
 
       author: {
         name:
-          "La Voz de Tomelloso"
+          "La Voz de Tomelloso",
+        link:
+          "https://lavozdetomelloso.com"
       }
 
     });
 
-    // RECORRER RSS
-    for (const item of items) {
+    // SOLO ÚLTIMAS 15 NOTICIAS
+    for (
+      const item of items.slice(0, 15)
+    ) {
 
       try {
 
         const link =
           item.link[0];
 
-        // ENTRAR EN NOTICIA
+        // ABRIR NOTICIA
         const response =
           await axios.get(link, {
             headers: {
@@ -83,6 +97,12 @@ module.exports = async (req, res) => {
 
         const $ =
           cheerio.load(response.data);
+
+        // TITULAR
+        const title =
+          item.title
+            ? item.title[0].trim()
+            : "";
 
         // SUBTÍTULO
         const subtitle =
@@ -96,15 +116,25 @@ module.exports = async (req, res) => {
           $("span.autor")
             .first()
             .text()
+            .replace(/\s+/g, " ")
             .trim();
 
-        // IMAGEN
-        const image =
-          $("img.img-fluid")
-            .first()
-            .attr("src");
+        // IMAGEN PRINCIPAL
+        let image =
+          $('meta[property="og:image"]')
+            .attr("content") || "";
 
-        // CATEGORÍAS
+        // FALLBACK IMAGEN
+        if (!image) {
+
+          image =
+            $("img.img-fluid")
+              .first()
+              .attr("src") || "";
+
+        }
+
+        // CATEGORÍAS LIMPIAS
         let categories = [];
 
         $("a.titulonegro").each((i, el) => {
@@ -113,9 +143,16 @@ module.exports = async (req, res) => {
             $(el)
               .text()
               .replace("|", "")
+              .replace(/\s+/g, " ")
               .trim();
 
-          if (text) {
+          if (
+            text &&
+            text !== "Tomelloso" &&
+            !categories.some(
+              c => c.name === text
+            )
+          ) {
 
             categories.push({
               name: text
@@ -125,38 +162,62 @@ module.exports = async (req, res) => {
 
         });
 
-        // CONTENIDO
+        // DESCRIPCIÓN RSS
+        const description =
+          item.description
+            ? item.description[0]
+            : "";
+
+        // CONTENIDO HTML
         const content = `
 
           ${
             image
-              ? `<p><img src="${image}" /></p>`
+              ? `
+                <p>
+                  <img
+                    src="${image}"
+                    alt="${title}"
+                  />
+                </p>
+              `
               : ""
           }
 
           ${
             subtitle
-              ? `<p><strong>${subtitle}</strong></p>`
+              ? `
+                <p>
+                  <strong>
+                    ${subtitle}
+                  </strong>
+                </p>
+              `
               : ""
           }
 
-          <p>
-            ${
-              item.description
-                ? item.description[0]
-                : ""
-            }
-          </p>
+          ${
+            description
+              ? `
+                <p>
+                  ${description}
+                </p>
+              `
+              : ""
+          }
 
         `;
+
+        // FECHA
+        const pubDate =
+          item.pubDate
+            ? new Date(item.pubDate[0])
+            : new Date();
 
         // AÑADIR ITEM
         feed.addItem({
 
-          title:
-            item.title
-              ? item.title[0]
-              : "",
+          title: title,
 
           id: link,
 
@@ -164,11 +225,7 @@ module.exports = async (req, res) => {
 
           description:
             subtitle ||
-            (
-              item.description
-                ? item.description[0]
-                : ""
-            ),
+            description,
 
           content: content,
 
@@ -181,26 +238,24 @@ module.exports = async (req, res) => {
 
           category: categories,
 
-          date:
-            item.pubDate
-              ? new Date(
-                  item.pubDate[0]
-                )
-              : new Date()
+          date: pubDate,
+
+          image: image
 
         });
 
       } catch (err) {
 
         console.log(
-          "Error noticia"
+          "Error noticia:",
+          err.message
         );
 
       }
 
     }
 
-    // DEVOLVER ATOM
+    // DEVOLVER ATOM XML
     res.setHeader(
       "Content-Type",
       "application/atom+xml; charset=utf-8"

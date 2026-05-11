@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
 
   try {
 
-    // RSS ORIGINAL
+    // DESCARGAR RSS ORIGINAL
     const rssResponse = await axios.get(
       "https://lavozdetomelloso.com/rss",
       {
@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
     const items =
       channel.item || [];
 
-    // CREAR FEED
+    // CREAR FEED ATOM
     const feed = new Feed({
 
       title:
@@ -69,7 +69,7 @@ module.exports = async (req, res) => {
 
     });
 
-    // SOLO ÚLTIMAS 15
+    // ÚLTIMAS 15 NOTICIAS
     for (
       const item of items.slice(0, 15)
     ) {
@@ -118,7 +118,7 @@ module.exports = async (req, res) => {
           $('meta[property="og:image"]')
             .attr("content") || "";
 
-        // FALLBACK
+        // FALLBACK IMAGEN
         if (!image) {
 
           image =
@@ -128,17 +128,15 @@ module.exports = async (req, res) => {
 
         }
 
-        // CATEGORÍAS REALES
+        // CATEGORÍA REAL
         let categories = [];
 
-        $('a[href*="/Categoria/"], a[href*="/Seccion/"]')
-          .slice(0, 3)
+        $('div[style*="background-color"] a[href*="/Categoria/"]')
           .each((i, el) => {
 
             const text =
               $(el)
                 .text()
-                .replace("|", "")
                 .replace(/\s+/g, " ")
                 .trim();
 
@@ -153,7 +151,45 @@ module.exports = async (req, res) => {
 
           });
 
-        // RESUMEN LIMPIO
+        // CONTENIDO REAL DEL ARTÍCULO
+        let articleContent = "";
+
+        $("p").each((i, el) => {
+
+          const text =
+            $(el)
+              .text()
+              .replace(/\s+/g, " ")
+              .trim();
+
+          // FILTRAR TEXTO BASURA
+          if (
+
+            text.length > 80 &&
+
+            !text.includes("Publicidad") &&
+
+            !text.includes("Relacionados") &&
+
+            !text.includes("WhatsApp") &&
+
+            !text.includes("Facebook") &&
+
+            !text.includes("Twitter") &&
+
+            !text.includes("Telegram")
+
+          ) {
+
+            articleContent += `
+              <p>${text}</p>
+            `;
+
+          }
+
+        });
+
+        // RESUMEN
         const summary =
           subtitle ||
           (
@@ -162,7 +198,7 @@ module.exports = async (req, res) => {
               : ""
           );
 
-        // CONTENIDO HTML LIMPIO
+        // CONTENIDO FINAL
         const content = `
 
           ${
@@ -190,6 +226,8 @@ module.exports = async (req, res) => {
               : ""
           }
 
+          ${articleContent}
+
         `;
 
         // FECHA
@@ -198,7 +236,7 @@ module.exports = async (req, res) => {
             ? new Date(item.pubDate[0])
             : new Date();
 
-        // ITEM ATOM
+        // AÑADIR ITEM
         feed.addItem({
 
           title: title,
@@ -238,7 +276,7 @@ module.exports = async (req, res) => {
 
     }
 
-    // DEVOLVER XML
+    // DEVOLVER ATOM XML
     res.setHeader(
       "Content-Type",
       "application/atom+xml; charset=utf-8"

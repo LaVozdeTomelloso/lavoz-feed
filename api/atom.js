@@ -76,7 +76,7 @@ module.exports = async (req, res) => {
 
     });
 
-    // SOLO ÚLTIMAS 15 NOTICIAS
+    // ÚLTIMAS 15 NOTICIAS
     for (
       const item of items.slice(0, 15)
     ) {
@@ -134,10 +134,13 @@ module.exports = async (req, res) => {
 
         }
 
-        // CATEGORÍAS LIMPIAS
+        // CATEGORÍAS
         let categories = [];
 
         $("a.titulonegro").each((i, el) => {
+
+          const href =
+            $(el).attr("href") || "";
 
           const text =
             $(el)
@@ -146,12 +149,21 @@ module.exports = async (req, res) => {
               .replace(/\s+/g, " ")
               .trim();
 
+          // SOLO CATEGORÍAS Y SECCIONES REALES
           if (
+
             text &&
-            text !== "Tomelloso" &&
+
+            (
+              href.includes("/Seccion/")
+              ||
+              href.includes("/Categoria/")
+            ) &&
+
             !categories.some(
               c => c.name === text
             )
+
           ) {
 
             categories.push({

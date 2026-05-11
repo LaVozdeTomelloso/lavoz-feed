@@ -7,13 +7,12 @@ module.exports = async (req, res) => {
 
   try {
 
-    // DESCARGAR RSS ORIGINAL
+    // RSS ORIGINAL
     const rssResponse = await axios.get(
       "https://lavozdetomelloso.com/rss",
       {
         headers: {
-          "User-Agent":
-            "Mozilla/5.0"
+          "User-Agent": "Mozilla/5.0"
         }
       }
     );
@@ -30,7 +29,7 @@ module.exports = async (req, res) => {
     const items =
       channel.item || [];
 
-    // CREAR FEED ATOM
+    // CREAR FEED
     const feed = new Feed({
 
       title:
@@ -47,14 +46,8 @@ module.exports = async (req, res) => {
 
       language: "es",
 
-      image:
-        "https://lavozdetomelloso.com/favicon.ico",
-
       favicon:
         "https://lavozdetomelloso.com/favicon.ico",
-
-      copyright:
-        "La Voz de Tomelloso",
 
       updated:
         new Date(),
@@ -76,7 +69,7 @@ module.exports = async (req, res) => {
 
     });
 
-    // ÚLTIMAS 15 NOTICIAS
+    // SOLO ÚLTIMAS 15
     for (
       const item of items.slice(0, 15)
     ) {
@@ -100,9 +93,10 @@ module.exports = async (req, res) => {
 
         // TITULAR
         const title =
-          item.title
-            ? item.title[0].trim()
-            : "";
+          $("h1")
+            .first()
+            .text()
+            .trim();
 
         // SUBTÍTULO
         const subtitle =
@@ -124,7 +118,7 @@ module.exports = async (req, res) => {
           $('meta[property="og:image"]')
             .attr("content") || "";
 
-        // FALLBACK IMAGEN
+        // FALLBACK
         if (!image) {
 
           image =
@@ -134,45 +128,41 @@ module.exports = async (req, res) => {
 
         }
 
-// CATEGORÍAS REALES
-let categories = [];
+        // CATEGORÍAS REALES
+        let categories = [];
 
-// SOLO CABECERA SUPERIOR
-$("span.autor")
-  .first()
-  .parent()
-  .parent()
-  .find('a[href*="/Categoria/"], a[href*="/Seccion/"]')
-  .each((i, el) => {
+        $('a[href*="/Categoria/"], a[href*="/Seccion/"]')
+          .slice(0, 3)
+          .each((i, el) => {
 
-    const text =
-      $(el)
-        .text()
-        .replace("|", "")
-        .replace(/\s+/g, " ")
-        .trim();
+            const text =
+              $(el)
+                .text()
+                .replace("|", "")
+                .replace(/\s+/g, " ")
+                .trim();
 
-    if (
-      text &&
-      !categories.some(
-        c => c.name === text
-      )
-    ) {
+            if (
+              text &&
+              !categories.includes(text)
+            ) {
 
-      categories.push({
-        name: text
-      });
+              categories.push(text);
 
-    }
+            }
 
-  });
-        // DESCRIPCIÓN RSS
-        const description =
-          item.description
-            ? item.description[0]
-            : "";
+          });
 
-        // CONTENIDO HTML
+        // RESUMEN LIMPIO
+        const summary =
+          subtitle ||
+          (
+            item.description
+              ? item.description[0]
+              : ""
+          );
+
+        // CONTENIDO HTML LIMPIO
         const content = `
 
           ${
@@ -200,16 +190,6 @@ $("span.autor")
               : ""
           }
 
-          ${
-            description
-              ? `
-                <p>
-                  ${description}
-                </p>
-              `
-              : ""
-          }
-
         `;
 
         // FECHA
@@ -218,7 +198,7 @@ $("span.autor")
             ? new Date(item.pubDate[0])
             : new Date();
 
-        // AÑADIR ITEM
+        // ITEM ATOM
         feed.addItem({
 
           title: title,
@@ -227,9 +207,7 @@ $("span.autor")
 
           link: link,
 
-          description:
-            subtitle ||
-            description,
+          description: summary,
 
           content: content,
 
@@ -240,11 +218,12 @@ $("span.autor")
             }
           ],
 
-          category: categories,
+          category:
+            categories.map(cat => ({
+              name: cat
+            })),
 
-          date: pubDate,
-
-          image: image
+          date: pubDate
 
         });
 
@@ -259,7 +238,7 @@ $("span.autor")
 
     }
 
-    // DEVOLVER ATOM XML
+    // DEVOLVER XML
     res.setHeader(
       "Content-Type",
       "application/atom+xml; charset=utf-8"

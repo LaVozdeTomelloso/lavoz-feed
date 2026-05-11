@@ -69,7 +69,7 @@ module.exports = async (req, res) => {
 
     });
 
-    // ÚLTIMAS 15 NOTICIAS
+    // SOLO ÚLTIMAS 15 NOTICIAS
     for (
       const item of items.slice(0, 15)
     ) {
@@ -128,28 +128,32 @@ module.exports = async (req, res) => {
 
         }
 
-        // CATEGORÍA REAL
-        let categories = [];
+        // ÚNICA CATEGORÍA REAL
+        let category = "";
 
-        $('div[style*="background-color"] a[href*="/Categoria/"]')
-          .each((i, el) => {
+        const categoryBlock =
+          $('div.d-flex.justify-content-center')
+            .first();
 
-            const text =
-              $(el)
+        if (categoryBlock.length) {
+
+          const categoryLink =
+            categoryBlock.find(
+              'a[href*="/Categoria/"]'
+            );
+
+          if (categoryLink.length) {
+
+            category =
+              categoryLink
+                .first()
                 .text()
                 .replace(/\s+/g, " ")
                 .trim();
 
-            if (
-              text &&
-              !categories.includes(text)
-            ) {
+          }
 
-              categories.push(text);
-
-            }
-
-          });
+        }
 
         // CONTENIDO REAL DEL ARTÍCULO
         let articleContent = "";
@@ -162,7 +166,7 @@ module.exports = async (req, res) => {
               .replace(/\s+/g, " ")
               .trim();
 
-          // FILTRAR TEXTO BASURA
+          // FILTRAR BASURA
           if (
 
             text.length > 80 &&
@@ -257,9 +261,9 @@ module.exports = async (req, res) => {
           ],
 
           category:
-            categories.map(cat => ({
-              name: cat
-            })),
+            category
+              ? [{ name: category }]
+              : [],
 
           date: pubDate
 

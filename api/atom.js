@@ -6,107 +6,173 @@ module.exports = async (req, res) => {
 
   try {
 
-    const WEBSITE_URL = "https://lavozdetomelloso.com";
+    const WEBSITE_URL =
+      "https://lavozdetomelloso.com";
 
-    const response = await axios.get(WEBSITE_URL);
+    const response =
+      await axios.get(WEBSITE_URL);
 
-    const $ = cheerio.load(response.data);
+    const $ =
+      cheerio.load(response.data);
 
     const feed = new Feed({
+
       title: "La Voz de Tomelloso",
-      description: "Noticias de Tomelloso y comarca",
+
+      description:
+        "Noticias de Tomelloso y comarca",
+
       id: WEBSITE_URL,
+
       link: WEBSITE_URL,
+
       language: "es",
+
       updated: new Date(),
-      generator: "La Voz Feed Generator",
+
+      generator:
+        "La Voz Feed Generator",
+
       feedLinks: {
-        atom: "https://lavoz-feed.vercel.app/atom.xml"
+        atom:
+          "https://lavoz-feed.vercel.app/atom.xml"
       },
+
       author: {
         name: "La Voz de Tomelloso"
       }
+
     });
 
-    $("article, .noticia, .news, .post").each((i, el) => {
+    $("#importante .row.mb-1").each((i, el) => {
 
-  const title =
-    $(el).find("#titularN, h1, h2, h3").first().text().trim();
+      const title =
+        $(el)
+          .find("h4 a")
+          .first()
+          .text()
+          .trim();
 
-  const subtitle =
-    $(el).find(".subtitulo").first().text().trim();
+      const relativeLink =
+        $(el)
+          .find("h4 a")
+          .first()
+          .attr("href");
 
-  const author =
-    $(el).find(".autor").first().text().trim();
+      if (!title || !relativeLink) return;
 
-  const links =
-    $(el).find("a");
+      const link =
+        WEBSITE_URL + relativeLink;
 
-  const relativeLink =
-    links.first().attr("href");
+      const summary =
+        $(el)
+          .find(".articulo-entradilla span")
+          .first()
+          .text()
+          .trim();
 
-  if (!title || !relativeLink) return;
+      const author =
+        $(el)
+          .find(".autor")
+          .first()
+          .text()
+          .trim();
 
-  const link = relativeLink.startsWith("http")
-    ? relativeLink
-    : WEBSITE_URL + relativeLink;
+      const date =
+        $(el)
+          .find(".hora")
+          .first()
+          .text()
+          .replace("|", "")
+          .trim();
 
-  let category = "";
+      const image =
+        $(el)
+          .find("img")
+          .first()
+          .attr("src");
 
-  if (links.length > 1) {
-    category =
-      $(links[1]).text().replace("|", "").trim();
-  }
+      let category = "";
 
-  const content = `
-    <p><strong>${subtitle}</strong></p>
+      $(el)
+        .find(".titulonegro")
+        .each((j, cat) => {
 
-    <p>
-      <em>
-        ${author}
-        ${category ? " · " + category : ""}
-      </em>
-    </p>
-  `;
+          const text =
+            $(cat)
+              .text()
+              .replace("|", "")
+              .trim();
 
-  feed.addItem({
+          if (
+            text &&
+            text !== "Tomelloso"
+          ) {
+            category = text;
+          }
 
-    title: title,
+        });
 
-    id: link,
+      const content = `
+        <img src="${image}" />
 
-    link: link,
+        <p>
+          <strong>${summary}</strong>
+        </p>
 
-    description: subtitle || title,
+        <p>
+          <em>
+            ${author}
+            ${date ? " · " + date : ""}
+            ${category ? " · " + category : ""}
+          </em>
+        </p>
+      `;
 
-    content: content,
+      feed.addItem({
 
-    author: [
-      {
-        name: author || "La Voz de Tomelloso"
-      }
-    ],
+        title: title,
 
-    category: category
-      ? [{ name: category }]
-      : [],
+        id: link,
 
-    date: new Date()
+        link: link,
 
-  });
+        description:
+          summary || title,
 
-});
+        content: content,
+
+        author: [
+          {
+            name:
+              author || "La Voz"
+          }
+        ],
+
+        category: category
+          ? [{ name: category }]
+          : [],
+
+        date: new Date()
+
+      });
+
+    });
 
     res.setHeader(
       "Content-Type",
       "application/atom+xml; charset=utf-8"
     );
 
-    res.status(200).send(feed.atom1());
+    res
+      .status(200)
+      .send(feed.atom1());
 
   } catch (error) {
 
-    res.status(500).send(error.message);
+    res
+      .status(500)
+      .send(error.message);
 
   }
 

@@ -134,46 +134,33 @@ module.exports = async (req, res) => {
 
         }
 
-        // CATEGORÍAS
-        let categories = [];
+        // CATEGORÍAS REALES DEL HEADER
+let categories = [];
 
-        $("a.titulonegro").each((i, el) => {
+// SOLO BLOQUE SUPERIOR DE METADATOS
+$(".titulo-secciones a").each((i, el) => {
 
-          const href =
-            $(el).attr("href") || "";
+  const text =
+    $(el)
+      .text()
+      .replace("|", "")
+      .replace(/\s+/g, " ")
+      .trim();
 
-          const text =
-            $(el)
-              .text()
-              .replace("|", "")
-              .replace(/\s+/g, " ")
-              .trim();
+  if (
+    text &&
+    !categories.some(
+      c => c.name === text
+    )
+  ) {
 
-          // SOLO CATEGORÍAS Y SECCIONES REALES
-          if (
+    categories.push({
+      name: text
+    });
 
-            text &&
+  }
 
-            (
-              href.includes("/Seccion/")
-              ||
-              href.includes("/Categoria/")
-            ) &&
-
-            !categories.some(
-              c => c.name === text
-            )
-
-          ) {
-
-            categories.push({
-              name: text
-            });
-
-          }
-
-        });
-
+});
         // DESCRIPCIÓN RSS
         const description =
           item.description

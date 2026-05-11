@@ -9,7 +9,7 @@ module.exports = async (req, res) => {
 
   try {
 
-    // LEER RSS ORIGINAL
+    // RSS ORIGINAL
     const rss =
       await parser.parseURL(
         "https://lavozdetomelloso.com/rss"
@@ -18,13 +18,20 @@ module.exports = async (req, res) => {
     // CREAR FEED ATOM
     const feed = new Feed({
 
-      title: rss.title,
+      title:
+        rss.title || "La Voz de Tomelloso",
 
-      description: rss.description,
+      description:
+        rss.description ||
+        "Noticias de Tomelloso y comarca",
 
-      id: rss.link,
+      id:
+        rss.link ||
+        "https://lavozdetomelloso.com",
 
-      link: rss.link,
+      link:
+        rss.link ||
+        "https://lavozdetomelloso.com",
 
       language: "es",
 
@@ -36,35 +43,47 @@ module.exports = async (req, res) => {
       feedLinks: {
         atom:
           "https://lavoz-feed.vercel.app/atom.xml"
+      },
+
+      author: {
+        name: "La Voz de Tomelloso"
       }
 
     });
 
-    // RECORRER NOTICIAS RSS
+    // RECORRER ITEMS RSS
     for (const item of rss.items) {
 
       try {
 
-        // ENTRAR EN LA NOTICIA
+        // ABRIR NOTICIA
         const response =
           await axios.get(item.link);
 
         const $ =
           cheerio.load(response.data);
 
-        // EXTRAER CAMPOS
+        // SUBTÍTULO
         const subtitle =
           $("h2.subtitulo")
             .first()
             .text()
             .trim();
 
+        // AUTOR
         const author =
-          $(".autor")
+          $("span.autor")
             .first()
             .text()
             .trim();
 
+        // IMAGEN
+        const image =
+          $("img.img-fluid")
+            .first()
+            .attr("src");
+
+        // CATEGORÍAS
         let categories = [];
 
         $("a.titulonegro").each((i, el) => {
@@ -76,28 +95,58 @@ module.exports = async (req, res) => {
               .trim();
 
           if (text) {
+
             categories.push({
               name: text
             });
+
           }
 
         });
 
-        // CREAR ITEM ATOM
+        // CONTENIDO HTML
+        const content = `
+
+          ${
+            image
+              ? `<p><img src="${image}" /></p>`
+              : ""
+          }
+
+          ${
+            subtitle
+              ? `<p><strong>${subtitle}</strong></p>`
+              : ""
+          }
+
+          <p>
+            ${
+              item.contentSnippet ||
+              item.content ||
+              ""
+            }
+          </p>
+
+        `;
+
+        // AÑADIR ITEM AL FEED
         feed.addItem({
 
-          title: item.title,
+          title:
+            item.title || "",
 
-          id: item.link,
+          id:
+            item.link || "",
 
-          link: item.link,
+          link:
+            item.link || "",
 
           description:
             subtitle ||
-            item.contentSnippet,
+            item.contentSnippet ||
+            "",
 
-          content:
-            item.contentSnippet,
+          content: content,
 
           author: [
             {
@@ -108,7 +157,10 @@ module.exports = async (req, res) => {
 
           category: categories,
 
-          date: new Date(item.pubDate)
+          date:
+            item.pubDate
+              ? new Date(item.pubDate)
+              : new Date()
 
         });
 
@@ -123,7 +175,7 @@ module.exports = async (req, res) => {
 
     }
 
-    // DEVOLVER XML
+    // DEVOLVER XML ATOM
     res.setHeader(
       "Content-Type",
       "application/atom+xml; charset=utf-8"

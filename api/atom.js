@@ -281,7 +281,7 @@ module.exports = async (req, res) => {
 
       /<category[^>]*label="([^"]+)"[^>]*\/>/g,
 
-      "<category>$1</category>"
+      "<category>$1</category><category_text>$1</category_text>"
 
     );
 

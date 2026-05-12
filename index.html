@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+
+    const content =
+      entry.querySelector('content')?.textContent || '';
+
+    let image = '';
+
+    const imgMatch =
+      content.match(/<img[^>]+src="([^"]+)"/);
+
+    if (imgMatch) {
+      image = imgMatch[1];
+    }
+
+    const card = document.createElement('div');
+
+    card.className = 'card';
+
+    card.innerHTML = `
+
+      ${image ? `<img src="${image}">` : ''}
+
+      <div class="content">
+
+        <div class="category">
+          ${category}
+        </div>
+
+        <h2>${title}</h2>
+
+        <div class="subtitle">
+          ${summary}
+        </div>
+
+        <div class="meta">
+          ${author}<br>
+          ${new Date(updated).toLocaleString('es-ES')}
+        </div>
+
+        <a class="readmore" href="${link}" target="_blank">
+          Leer noticia
+        </a>
+
+      </div>
+
+    `;
+
+    container.appendChild(card);
+
+  });
+
+}
+
+loadFeed();
+
+</script>
+
+</body>
+</html>

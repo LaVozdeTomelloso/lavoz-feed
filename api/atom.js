@@ -130,61 +130,30 @@ module.exports = async (req, res) => {
 
         }
 
-        // CATEGORÍAS REALES
-        let categories = [];
+        // ÚNICA CATEGORÍA REAL
+        let category = "";
 
-        // SOLO EL BLOQUE DE METADATOS DE LA NOTICIA
-        const metadataBlock =
-          $("span.autor")
-            .first()
-            .closest("div.row");
+        const categoryBlock =
+          $('div.d-flex.justify-content-center')
+            .first();
 
-        if (metadataBlock.length) {
+        if (categoryBlock.length) {
 
-          // CATEGORÍA PRINCIPAL
-          metadataBlock
-            .find('a[href*="/Categoria/"]')
-            .each((i, el) => {
+          const categoryLink =
+            categoryBlock.find(
+              'a[href*="/Categoria/"]'
+            );
 
-              const text =
-                $(el)
-                  .text()
-                  .replace(/\s+/g, " ")
-                  .trim();
+          if (categoryLink.length) {
 
-              if (
-                text &&
-                !categories.includes(text)
-              ) {
+            category =
+              categoryLink
+                .first()
+                .text()
+                .replace(/\s+/g, " ")
+                .trim();
 
-                categories.push(text);
-
-              }
-
-            });
-
-          // SUBCATEGORÍA
-          metadataBlock
-            .find('a[href*="/Seccion/"]')
-            .each((i, el) => {
-
-              const text =
-                $(el)
-                  .text()
-                  .replace("|", "")
-                  .replace(/\s+/g, " ")
-                  .trim();
-
-              if (
-                text &&
-                !categories.includes(text)
-              ) {
-
-                categories.push(text);
-
-              }
-
-            });
+          }
 
         }
 
@@ -294,9 +263,9 @@ module.exports = async (req, res) => {
           ],
 
           category:
-            categories.map(cat => ({
-              name: cat
-            })),
+            category
+              ? [{ name: category }]
+              : [],
 
           date: pubDate
 

@@ -130,51 +130,22 @@ module.exports = async (req, res) => {
 
         }
 
-        // CATEGORÍAS REALES
-        let categories = [];
+        // SOLO LA CATEGORÍA REAL
+        let category = "";
 
-        // CATEGORÍA PRINCIPAL
-        $('div.d-flex.justify-content-center a[href*="/Categoria/"]')
-          .each((i, el) => {
+        const categoryElement =
+          $('div.d-flex.justify-content-center a[href*="/Categoria/"]')
+            .first();
 
-            const text =
-              $(el)
-                .text()
-                .replace(/\s+/g, " ")
-                .trim();
+        if (categoryElement.length) {
 
-            if (
-              text &&
-              !categories.includes(text)
-            ) {
+          category =
+            categoryElement
+              .text()
+              .replace(/\s+/g, " ")
+              .trim();
 
-              categories.push(text);
-
-            }
-
-          });
-
-        // SUBCATEGORÍA
-        $('a[href*="/Seccion/"]')
-          .each((i, el) => {
-
-            const text =
-              $(el)
-                .text()
-                .replace("|", "")
-                .replace(/\s+/g, " ")
-                .trim();
-
-            if (
-              text &&
-              !categories.includes(text)
-            ) {
-
-              categories.push(text);
-
-            }
-
-          });
+        }
 
         // CONTENIDO REAL DEL ARTÍCULO
         let articleContent = "";
@@ -282,9 +253,9 @@ module.exports = async (req, res) => {
           ],
 
           category:
-            categories.map(cat => ({
-              name: cat
-            })),
+            category
+              ? [{ name: category }]
+              : [],
 
           date: pubDate
 

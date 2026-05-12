@@ -320,7 +320,7 @@ module.exports = async (req, res) => {
     // CONVERTIR CATEGORÍAS PARA MAKE
     atomXml = atomXml.replace(
 
-      /<category[^>]*label="([^"]+)"[^>]*\/>/g,
+      /<category[^>]*term="([^"]+)"[^>]*\/>/g,
 
       "<category>$1</category>"
 

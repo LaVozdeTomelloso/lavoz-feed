@@ -130,30 +130,61 @@ module.exports = async (req, res) => {
 
         }
 
-        // ÚNICA CATEGORÍA REAL
-        let category = "";
+        // CATEGORÍAS REALES
+        let categories = [];
 
-        const categoryBlock =
-          $('div.d-flex.justify-content-center')
-            .first();
+        // SOLO BLOQUE DE METADATOS
+        const metadataBlock =
+          $("span.autor")
+            .first()
+            .closest("div.row");
 
-        if (categoryBlock.length) {
+        if (metadataBlock.length) {
 
-          const categoryLink =
-            categoryBlock.find(
-              'a[href*="/Categoria/"]'
-            );
+          // CATEGORÍA PRINCIPAL
+          metadataBlock
+            .find('a[href*="/Categoria/"]')
+            .each((i, el) => {
 
-          if (categoryLink.length) {
+              const text =
+                $(el)
+                  .text()
+                  .replace(/\s+/g, " ")
+                  .trim();
 
-            category =
-              categoryLink
-                .first()
-                .text()
-                .replace(/\s+/g, " ")
-                .trim();
+              if (
+                text &&
+                !categories.includes(text)
+              ) {
 
-          }
+                categories.push(text);
+
+              }
+
+            });
+
+          // SUBCATEGORÍA
+          metadataBlock
+            .find('a[href*="/Seccion/"]')
+            .each((i, el) => {
+
+              const text =
+                $(el)
+                  .text()
+                  .replace("|", "")
+                  .replace(/\s+/g, " ")
+                  .trim();
+
+              if (
+                text &&
+                !categories.includes(text)
+              ) {
+
+                categories.push(text);
+
+              }
+
+            });
 
         }
 
@@ -263,9 +294,9 @@ module.exports = async (req, res) => {
           ],
 
           category:
-            category
-              ? [{ name: category }]
-              : [],
+            categories.map(cat => ({
+              name: cat
+            })),
 
           date: pubDate
 
@@ -282,7 +313,20 @@ module.exports = async (req, res) => {
 
     }
 
-    // DEVOLVER XML ATOM
+    // GENERAR XML ATOM
+    let atomXml =
+      feed.atom1();
+
+    // CONVERTIR CATEGORÍAS PARA MAKE
+    atomXml = atomXml.replace(
+
+      /<category[^>]*label="([^"]+)"[^>]*\/>/g,
+
+      "<category>$1</category>"
+
+    );
+
+    // DEVOLVER XML
     res.setHeader(
       "Content-Type",
       "application/atom+xml; charset=utf-8"
@@ -290,7 +334,7 @@ module.exports = async (req, res) => {
 
     res
       .status(200)
-      .send(feed.atom1());
+      .send(atomXml);
 
   } catch (error) {
 

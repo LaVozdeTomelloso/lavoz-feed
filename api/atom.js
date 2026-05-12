@@ -130,52 +130,61 @@ module.exports = async (req, res) => {
 
         }
 
-        // CATEGORÍA Y SUBCATEGORÍA
+        // CATEGORÍAS REALES
         let categories = [];
 
-        // CATEGORÍA PRINCIPAL
-        const mainCategory =
-          $('a[href*="/Categoria/"]')
-            .first();
+        // SOLO EL BLOQUE DE METADATOS DE LA NOTICIA
+        const metadataBlock =
+          $("span.autor")
+            .first()
+            .closest("div.row");
 
-        if (mainCategory.length) {
+        if (metadataBlock.length) {
 
-          const text =
-            mainCategory
-              .text()
-              .replace(/\s+/g, " ")
-              .trim();
+          // CATEGORÍA PRINCIPAL
+          metadataBlock
+            .find('a[href*="/Categoria/"]')
+            .each((i, el) => {
 
-          if (text) {
+              const text =
+                $(el)
+                  .text()
+                  .replace(/\s+/g, " ")
+                  .trim();
 
-            categories.push(text);
+              if (
+                text &&
+                !categories.includes(text)
+              ) {
 
-          }
+                categories.push(text);
 
-        }
+              }
 
-        // SUBCATEGORÍA
-        const subCategory =
-          $('a[href*="/Seccion/"]')
-            .first();
+            });
 
-        if (subCategory.length) {
+          // SUBCATEGORÍA
+          metadataBlock
+            .find('a[href*="/Seccion/"]')
+            .each((i, el) => {
 
-          const text =
-            subCategory
-              .text()
-              .replace("|", "")
-              .replace(/\s+/g, " ")
-              .trim();
+              const text =
+                $(el)
+                  .text()
+                  .replace("|", "")
+                  .replace(/\s+/g, " ")
+                  .trim();
 
-          if (
-            text &&
-            !categories.includes(text)
-          ) {
+              if (
+                text &&
+                !categories.includes(text)
+              ) {
 
-            categories.push(text);
+                categories.push(text);
 
-          }
+              }
+
+            });
 
         }
 

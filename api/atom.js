@@ -130,28 +130,50 @@ module.exports = async (req, res) => {
 
         }
 
-        // ÚNICA CATEGORÍA REAL
-        let category = "";
+        // CATEGORÍA Y SUBCATEGORÍA
+        let categories = [];
 
-        const categoryBlock =
-          $('div.d-flex.justify-content-center')
+        // CATEGORÍA PRINCIPAL
+        const mainCategory =
+          $('a[href*="/Categoria/"]')
             .first();
 
-        if (categoryBlock.length) {
+        if (mainCategory.length) {
 
-          const categoryLink =
-            categoryBlock.find(
-              'a[href*="/Categoria/"]'
-            );
+          const text =
+            mainCategory
+              .text()
+              .replace(/\s+/g, " ")
+              .trim();
 
-          if (categoryLink.length) {
+          if (text) {
 
-            category =
-              categoryLink
-                .first()
-                .text()
-                .replace(/\s+/g, " ")
-                .trim();
+            categories.push(text);
+
+          }
+
+        }
+
+        // SUBCATEGORÍA
+        const subCategory =
+          $('a[href*="/Seccion/"]')
+            .first();
+
+        if (subCategory.length) {
+
+          const text =
+            subCategory
+              .text()
+              .replace("|", "")
+              .replace(/\s+/g, " ")
+              .trim();
+
+          if (
+            text &&
+            !categories.includes(text)
+          ) {
+
+            categories.push(text);
 
           }
 
@@ -263,9 +285,9 @@ module.exports = async (req, res) => {
           ],
 
           category:
-            category
-              ? [{ name: category }]
-              : [],
+            categories.map(cat => ({
+              name: cat
+            })),
 
           date: pubDate
 

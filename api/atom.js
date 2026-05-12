@@ -133,60 +133,48 @@ module.exports = async (req, res) => {
         // CATEGORÍAS REALES
         let categories = [];
 
-        // SOLO BLOQUE DE METADATOS
-        const metadataBlock =
-          $("span.autor")
-            .first()
-            .closest("div.row");
+        // CATEGORÍA PRINCIPAL
+        $('div.d-flex.justify-content-center a[href*="/Categoria/"]')
+          .each((i, el) => {
 
-        if (metadataBlock.length) {
+            const text =
+              $(el)
+                .text()
+                .replace(/\s+/g, " ")
+                .trim();
 
-          // CATEGORÍA PRINCIPAL
-          metadataBlock
-            .find('a[href*="/Categoria/"]')
-            .each((i, el) => {
+            if (
+              text &&
+              !categories.includes(text)
+            ) {
 
-              const text =
-                $(el)
-                  .text()
-                  .replace(/\s+/g, " ")
-                  .trim();
+              categories.push(text);
 
-              if (
-                text &&
-                !categories.includes(text)
-              ) {
+            }
 
-                categories.push(text);
+          });
 
-              }
+        // SUBCATEGORÍA
+        $('a[href*="/Seccion/"]')
+          .each((i, el) => {
 
-            });
+            const text =
+              $(el)
+                .text()
+                .replace("|", "")
+                .replace(/\s+/g, " ")
+                .trim();
 
-          // SUBCATEGORÍA
-          metadataBlock
-            .find('a[href*="/Seccion/"]')
-            .each((i, el) => {
+            if (
+              text &&
+              !categories.includes(text)
+            ) {
 
-              const text =
-                $(el)
-                  .text()
-                  .replace("|", "")
-                  .replace(/\s+/g, " ")
-                  .trim();
+              categories.push(text);
 
-              if (
-                text &&
-                !categories.includes(text)
-              ) {
+            }
 
-                categories.push(text);
-
-              }
-
-            });
-
-        }
+          });
 
         // CONTENIDO REAL DEL ARTÍCULO
         let articleContent = "";
@@ -320,7 +308,7 @@ module.exports = async (req, res) => {
     // CONVERTIR CATEGORÍAS PARA MAKE
     atomXml = atomXml.replace(
 
-      /<category[^>]*term="([^"]+)"[^>]*\/>/g,
+      /<category[^>]*label="([^"]+)"[^>]*\/>/g,
 
       "<category>$1</category>"
 

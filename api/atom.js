@@ -71,8 +71,10 @@ module.exports = async (req, res) => {
 
     // ÚLTIMAS 15 NOTICIAS
     for (
-      const item of items.slice(0, 15)
-    ) {
+  const item of items
+    .slice(0, 15)
+    .reverse()
+) {
 
       try {
 

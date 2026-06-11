@@ -69,11 +69,9 @@ module.exports = async (req, res) => {
 
     });
 
-    // ÚLTIMAS 15 NOTICIAS
-    for (
-  const item of items
-    .slice(0, 15)
-    .reverse()
+ // ÚLTIMAS 15 NOTICIAS
+for (
+  const item of items.slice(0, 15)
 ) {
 
       try {
@@ -188,14 +186,16 @@ module.exports = async (req, res) => {
         });
 
         // RESUMEN
-        const summary =
-          subtitle ||
-          (
-            item.description
-              ? item.description[0]
-              : ""
-          );
+const rawSummary =
+  subtitle ||
+  (
+    item.description
+      ? item.description[0]
+      : ""
+  );
 
+const summary =
+  `${category || "Noticias"}|||${rawSummary}`;
         // CONTENIDO FINAL
         const content = `
 

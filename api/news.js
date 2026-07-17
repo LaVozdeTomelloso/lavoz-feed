@@ -8,10 +8,6 @@ module.exports = async (req, res) => {
 
     const after = String(req.query.after || "").trim();
 
-    // ============================
-    // DESCARGAR RSS
-    // ============================
-
     const rssResponse = await axios.get(
       "https://lavozdetomelloso.com/rss",
       {
@@ -22,10 +18,6 @@ module.exports = async (req, res) => {
       }
     );
 
-    // ============================
-    // PARSEAR RSS
-    // ============================
-
     const rssData = await xml2js.parseStringPromise(
       rssResponse.data
     );
@@ -34,18 +26,9 @@ module.exports = async (req, res) => {
 
     const items = channel.item || [];
 
-    // ============================
-    // ÚLTIMAS 15 NOTICIAS
-    // ORDEN ANTIGUO -> NUEVO
-    // ============================
-
     let pending = items
       .slice(0, 15)
       .reverse();
-
-    // ============================
-    // FILTRAR POR GUID
-    // ============================
 
     if (after) {
 
@@ -59,7 +42,7 @@ module.exports = async (req, res) => {
 
             guid = item.guid[0];
 
-          } else if (item.guid[0]._ ) {
+          } else if (item.guid[0]._) {
 
             guid = item.guid[0]._;
 
@@ -88,12 +71,7 @@ module.exports = async (req, res) => {
     }
 
     const news = [];
-
-    // ============================
-    // RECORRER NOTICIAS
-    // ============================
-
-    for (const item of pending) {
+        for (const item of pending) {
 
       try {
 
@@ -105,7 +83,7 @@ module.exports = async (req, res) => {
 
             guid = item.guid[0];
 
-          } else if (item.guid[0]._ ) {
+          } else if (item.guid[0]._) {
 
             guid = item.guid[0]._;
 
@@ -118,10 +96,6 @@ module.exports = async (req, res) => {
             ? item.link[0]
             : "";
 
-        // ============================
-        // DESCARGAR NOTICIA
-        // ============================
-
         const response = await axios.get(
           link,
           {
@@ -133,10 +107,6 @@ module.exports = async (req, res) => {
         );
 
         const $ = cheerio.load(response.data);
-
-        // ============================
-        // FUNCIONES AUXILIARES
-        // ============================
 
         const cleanText = (text = "") =>
           text.replace(/\s+/g, " ").trim();
@@ -175,10 +145,7 @@ module.exports = async (req, res) => {
 
           return "";
 
-        };        
-        // ============================
-        // TITULAR
-        // ============================
+        };
 
         const title =
           firstText(
@@ -190,10 +157,6 @@ module.exports = async (req, res) => {
             'meta[property="og:title"]'
           );
 
-        // ============================
-        // SUBTÍTULO
-        // ============================
-
         const subtitle =
           firstText(
             "h2.subtitulo",
@@ -201,22 +164,13 @@ module.exports = async (req, res) => {
             "h2"
           );
 
-        // ============================
-        // AUTOR
-        // ============================
-
         const author =
           firstText(
             "span.autor",
             ".autor",
             ".nombre-autor"
           );
-
-        // ============================
-        // IMAGEN
-        // ============================
-
-        let image =
+                let image =
           firstAttr(
             "content",
             'meta[property="og:image"]'
@@ -242,25 +196,17 @@ module.exports = async (req, res) => {
 
         }
 
-        // ============================
-        // CATEGORÍA
-        // ============================
-
         const categories = $('a[href*="/Categoria/"]');
 
-let category = "";
+        let category = "";
 
-if (categories.length) {
+        if (categories.length) {
 
-  category = cleanText(
-    $(categories[categories.length - 1]).text()
-  );
+          category = cleanText(
+            $(categories[categories.length - 1]).text()
+          );
 
-}
-
-        // ============================
-        // CUERPO DE LA NOTICIA
-        // ============================
+        }
 
         const article =
           $(".text-noticia")
@@ -332,12 +278,7 @@ if (categories.length) {
 
         textContent =
           textContent.trim();
-
-        // ============================
-        // FECHA
-        // ============================
-
-        const pubDate =
+                const pubDate =
           item.pubDate
             ? item.pubDate[0]
             : (
@@ -345,10 +286,6 @@ if (categories.length) {
                   ? item["a10:updated"][0]
                   : ""
               );
-
-        // ============================
-        // RESUMEN
-        // ============================
 
         let summary = "";
 
@@ -371,9 +308,6 @@ if (categories.length) {
 
         }
 
-        // Si no hay contenido útil,
-        // descartamos la noticia
-
         if (!title || !textContent) {
 
           console.log(
@@ -384,9 +318,6 @@ if (categories.length) {
           continue;
 
         }
-                // ============================
-        // AÑADIR AL ARRAY
-        // ============================
 
         news.push({
 
@@ -432,19 +363,11 @@ if (categories.length) {
 
     }
 
-    // ============================
-    // ORDENAR POR FECHA
-    // ============================
-
     news.sort((a, b) => {
 
       return new Date(a.pubDate) - new Date(b.pubDate);
 
     });
-
-    // ============================
-    // ÚLTIMO GUID DEVUELTO
-    // ============================
 
     const lastGuid =
 
@@ -453,10 +376,6 @@ if (categories.length) {
         ? news[news.length - 1].guid
 
         : after;
-
-    // ============================
-    // RESPUESTA JSON
-    // ============================
 
     res.setHeader(
 

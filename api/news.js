@@ -224,34 +224,45 @@ module.exports = async (req, res) => {
           continue;
 
         }
+const wordCount =
+  articleContent
+    .replace(/<[^>]+>/g, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
 
+const readingTime =
+  Math.max(
+    1,
+    Math.ceil(wordCount / 200)
+  );
         news.push({
 
-          guid,
+  guid,
 
-          link,
+  link,
 
-          title,
+  title,
 
-          subtitle,
+  subtitle,
 
-          author,
+  author,
 
-          category,
+  category,
 
-          image,
+  image,
 
-          summary,
+  summary,
 
-          content: articleContent,
-            wordCount,
+  content: articleContent,
+
+  wordCount,
 
   readingTime,
-          
-          pubDate
 
-        });
+  pubDate
 
+});
       } catch (err) {
 
         console.log(

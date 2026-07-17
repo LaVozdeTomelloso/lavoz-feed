@@ -246,12 +246,17 @@ module.exports = async (req, res) => {
         // CATEGORÍA
         // ============================
 
-        const category =
-          firstText(
-            'a[href*="/Categoria/"]',
-            ".categoria",
-            ".category"
-          );
+        const categories = $('a[href*="/Categoria/"]');
+
+let category = "";
+
+if (categories.length) {
+
+  category = cleanText(
+    $(categories[categories.length - 1]).text()
+  );
+
+}
 
         // ============================
         // CUERPO DE LA NOTICIA

@@ -82,8 +82,6 @@ if (after) {
 
 }
 
-const news = [];
-
     const news = [];
 
     for (const item of pending) {

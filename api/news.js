@@ -43,22 +43,9 @@ module.exports = async (req, res) => {
         .reverse();
 
     // SI RECIBIMOS after,
-    // ELIMINAMOS TODAS LAS YA PROCESADAS
+// ELIMINAMOS TODAS LAS YA PROCESADAS
 
-    if (after) {
-
-      const index =
-        pending.findIndex(item =>
-
-          String(
-            item.guid
-              ? item.guid[0]
-              : ""
-          ) === after
-
-        );
-
-      if (after) {
+if (after) {
 
   const index =
     pending.findIndex(item =>
@@ -73,26 +60,29 @@ module.exports = async (req, res) => {
 
   if (index >= 0) {
 
-    // Devolver solo las posteriores al último GUID publicado
-    pending = pending.slice(index + 1);
+    // Solo devolvemos las posteriores
+    pending =
+      pending.slice(index + 1);
 
   } else {
 
     // El GUID ya no está en el RSS.
-    // Para evitar republicar noticias,
-    // devolvemos un array vacío.
+    // Mejor no publicar nada
+    // que republicar noticias.
     pending = [];
 
   }
 
 } else {
 
-  // Sin parámetro "after":
-  // devolver únicamente la noticia más reciente
-  // para facilitar las pruebas del endpoint.
-  pending = pending.slice(-1);
+  // Sin parámetro "after"
+  // devolvemos únicamente la noticia más reciente
+  pending =
+    pending.slice(-1);
 
 }
+
+const news = [];
 
     const news = [];
 

@@ -244,7 +244,10 @@ module.exports = async (req, res) => {
           summary,
 
           content: articleContent,
+            wordCount,
 
+  readingTime,
+          
           pubDate
 
         });

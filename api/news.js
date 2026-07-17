@@ -13,50 +13,55 @@ module.exports = async (req, res) => {
       {
         headers: {
           "User-Agent": "Mozilla/5.0"
-        },
-        timeout: 15000
+        }
       }
     );
 
-    const rssData = await xml2js.parseStringPromise(
-      rssResponse.data
-    );
+    const rssData =
+      await xml2js.parseStringPromise(
+        rssResponse.data
+      );
 
-    const channel = rssData.rss.channel[0];
+    const channel =
+      rssData.rss.channel[0];
 
-    const items = channel.item || [];
+    const items =
+      channel.item || [];
 
-    let pending = items
-      .slice(0, 15)
-      .reverse();
+    let pending =
+      items
+        .slice(0, 15)
+        .reverse();
 
     if (after) {
 
-      const index = pending.findIndex(item => {
+      const index =
+        pending.findIndex(item => {
 
-        let guid = "";
+          let guid = "";
 
-        if (item.guid) {
+          if (item.guid) {
 
-          if (typeof item.guid[0] === "string") {
+            if (typeof item.guid[0] === "string") {
 
-            guid = item.guid[0];
+              guid = item.guid[0];
 
-          } else if (item.guid[0]._) {
+            } else if (item.guid[0]._) {
 
-            guid = item.guid[0]._;
+              guid = item.guid[0]._;
+
+            }
 
           }
 
-        }
+          return guid === after;
 
-        return guid === after;
-
-      });
+        });
 
       if (index >= 0) {
 
-        pending = pending.slice(index + 1);
+        pending =
+          pending.slice(index + 1);
 
       } else {
 
@@ -66,7 +71,8 @@ module.exports = async (req, res) => {
 
     } else {
 
-      pending = pending.slice(-1);
+      pending =
+        pending.slice(-1);
 
     }
 
@@ -92,223 +98,123 @@ module.exports = async (req, res) => {
         }
 
         const link =
-          item.link
-            ? item.link[0]
-            : "";
+          item.link[0];
 
-        const response = await axios.get(
-          link,
-          {
+        const response =
+          await axios.get(link, {
             headers: {
-              "User-Agent": "Mozilla/5.0"
-            },
-            timeout: 15000
-          }
-        );
+              "User-Agent":
+                "Mozilla/5.0"
+            }
+          });
 
-        const $ = cheerio.load(response.data);
-
-        const cleanText = (text = "") =>
-          text.replace(/\s+/g, " ").trim();
-
-        const firstText = (...selectors) => {
-
-          for (const selector of selectors) {
-
-            const value =
-              cleanText(
-                $(selector)
-                  .first()
-                  .text()
-              );
-
-            if (value) return value;
-
-          }
-
-          return "";
-
-        };
-
-        const firstAttr = (attr, ...selectors) => {
-
-          for (const selector of selectors) {
-
-            const value =
-              $(selector)
-                .first()
-                .attr(attr);
-
-            if (value) return value.trim();
-
-          }
-
-          return "";
-
-        };
+        const $ =
+          cheerio.load(response.data);
 
         const title =
-          firstText(
-            "#titularN",
-            "h1"
-          ) ||
-          firstAttr(
-            "content",
-            'meta[property="og:title"]'
-          );
+          $("#titularN")
+            .first()
+            .text()
+            .replace(/\s+/g, " ")
+            .trim();
 
         const subtitle =
-          firstText(
-            "h2.subtitulo",
-            ".subtitulo",
-            "h2"
-          );
+          $("h2.subtitulo")
+            .first()
+            .text()
+            .replace(/\s+/g, " ")
+            .trim();
 
         const author =
-          firstText(
-            "span.autor",
-            ".autor",
-            ".nombre-autor"
-          );
-                let image =
-          firstAttr(
-            "content",
-            'meta[property="og:image"]'
-          );
+          $("span.autor")
+            .first()
+            .text()
+            .replace(/\s+/g, " ")
+            .trim();
+
+        let image =
+          $('meta[property="og:image"]')
+            .attr("content") || "";
 
         if (!image) {
 
           image =
-            firstAttr(
-              "src",
-              ".img-titular img",
-              "img.img-fluid",
-              "article img"
-            );
+            $("img.img-fluid")
+              .first()
+              .attr("src") || "";
+
+        }
+                let category = "";
+
+        const categoryElement =
+          $('div.d-flex.justify-content-center a[href*="/Categoria/"]')
+            .first();
+
+        if (categoryElement.length) {
+
+          category =
+            categoryElement
+              .text()
+              .replace(/\s+/g, " ")
+              .trim();
 
         }
 
-        if (image && image.startsWith("/")) {
+        let articleContent = "";
 
-          image =
-            "https://lavozdetomelloso.com" +
-            image;
-
-        }
-
-        const categories = $('a[href*="/Categoria/"]');
-
-        let category = "";
-
-        if (categories.length) {
-
-          category = cleanText(
-            $(categories[categories.length - 1]).text()
-          );
-
-        }
-
-        const article =
-          $(".text-noticia")
-            .first()
-            .clone();
-
-        article
-          .find("script,style,iframe")
-          .remove();
-
-        article
-          .find("img")
-          .remove();
-
-        article
-          .find("figure")
-          .remove();
-
-        article
-          .find(".publicidad")
-          .remove();
-
-        article
-          .find(".ads")
-          .remove();
-
-        let htmlContent =
-          article.html() || "";
-
-        let textContent = "";
-
-        article.find("p").each((i, el) => {
+        $("p").each((i, el) => {
 
           const text =
-            cleanText(
-              $(el).text()
-            );
-
-          if (text.length < 25) {
-
-            return;
-
-          }
+            $(el)
+              .text()
+              .replace(/\s+/g, " ")
+              .trim();
 
           if (
 
-            text.includes("Publicidad") ||
+            text.length > 80 &&
 
-            text.includes("Relacionados") ||
+            !text.includes("Publicidad") &&
 
-            text.includes("WhatsApp") ||
+            !text.includes("Relacionados") &&
 
-            text.includes("Facebook") ||
+            !text.includes("WhatsApp") &&
 
-            text.includes("Twitter") ||
+            !text.includes("Facebook") &&
 
-            text.includes("Telegram")
+            !text.includes("Twitter") &&
+
+            !text.includes("Telegram")
 
           ) {
 
-            return;
+            articleContent += text + "\n\n";
 
           }
-
-          textContent +=
-            text + "\n\n";
 
         });
 
-        textContent =
-          textContent.trim();
-                const pubDate =
+        articleContent =
+          articleContent.trim();
+                const rawSummary =
+          subtitle ||
+          (
+            item.description
+              ? item.description[0]
+              : ""
+          );
+
+        const summary =
+          rawSummary
+            .replace(/\s+/g, " ")
+            .trim();
+
+        const pubDate =
           item.pubDate
             ? item.pubDate[0]
-            : (
-                item["a10:updated"]
-                  ? item["a10:updated"][0]
-                  : ""
-              );
+            : new Date().toISOString();
 
-        let summary = "";
-
-        if (subtitle) {
-
-          summary = subtitle;
-
-        } else {
-
-          summary =
-            cleanText(
-              textContent.substring(0, 220)
-            );
-
-          if (summary.length === 220) {
-
-            summary += "...";
-
-          }
-
-        }
-
-        if (!title || !textContent) {
+        if (!title || !articleContent) {
 
           console.log(
             "Noticia descartada:",
@@ -337,9 +243,7 @@ module.exports = async (req, res) => {
 
           summary,
 
-          content: textContent,
-
-          html: htmlContent,
+          content: articleContent,
 
           pubDate
 
@@ -347,13 +251,9 @@ module.exports = async (req, res) => {
 
       } catch (err) {
 
-        console.error(
+        console.log(
 
-          "Error procesando noticia:",
-
-          item.link
-            ? item.link[0]
-            : "",
+          "Error noticia:",
 
           err.message
 
@@ -362,16 +262,16 @@ module.exports = async (req, res) => {
       }
 
     }
+        news.sort((a, b) =>
 
-    news.sort((a, b) => {
+      new Date(a.pubDate) -
+      new Date(b.pubDate)
 
-      return new Date(a.pubDate) - new Date(b.pubDate);
-
-    });
+    );
 
     const lastGuid =
 
-      news.length > 0
+      news.length
 
         ? news[news.length - 1].guid
 
@@ -387,9 +287,11 @@ module.exports = async (req, res) => {
 
     res.status(200).json({
 
-      generatedAt: new Date().toISOString(),
+      generatedAt:
+        new Date().toISOString(),
 
-      count: news.length,
+      count:
+        news.length,
 
       lastGuid,
 
@@ -397,15 +299,13 @@ module.exports = async (req, res) => {
 
     });
 
-  } catch (err) {
-
-    console.error(err);
+  } catch (error) {
 
     res.status(500).json({
 
       error: true,
 
-      message: err.message
+      message: error.message
 
     });
 

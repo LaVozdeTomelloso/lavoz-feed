@@ -6,83 +6,92 @@ module.exports = async (req, res) => {
 
   try {
 
-    const after =
-      String(req.query.after || "").trim();
+    const after = String(req.query.after || "").trim();
 
-    // DESCARGAR RSS ORIGINAL
+    // ============================
+    // DESCARGAR RSS
+    // ============================
 
-    const rssResponse =
-      await axios.get(
-        "https://lavozdetomelloso.com/rss",
-        {
-          headers: {
-            "User-Agent": "Mozilla/5.0"
-          }
-        }
-      );
-
-    // PARSEAR RSS
-
-    const rssData =
-      await xml2js.parseStringPromise(
-        rssResponse.data
-      );
-
-    const channel =
-      rssData.rss.channel[0];
-
-    const items =
-      channel.item || [];
-
-    // NOS QUEDAMOS CON LAS 15 ÚLTIMAS
-    // EN ORDEN ANTIGUO -> NUEVO
-
-    let pending =
-      items
-        .slice(0, 15)
-        .reverse();
-
-    // SI RECIBIMOS after,
-// ELIMINAMOS TODAS LAS YA PROCESADAS
-
-if (after) {
-
-  const index =
-    pending.findIndex(item =>
-
-      String(
-        item.guid
-          ? item.guid[0]
-          : ""
-      ) === after
-
+    const rssResponse = await axios.get(
+      "https://lavozdetomelloso.com/rss",
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0"
+        },
+        timeout: 15000
+      }
     );
 
-  if (index >= 0) {
+    // ============================
+    // PARSEAR RSS
+    // ============================
 
-    // Solo devolvemos las posteriores
-    pending =
-      pending.slice(index + 1);
+    const rssData = await xml2js.parseStringPromise(
+      rssResponse.data
+    );
 
-  } else {
+    const channel = rssData.rss.channel[0];
 
-    // El GUID ya no está en el RSS.
-    // Mejor no publicar nada
-    // que republicar noticias.
-    pending = [];
+    const items = channel.item || [];
 
-  }
+    // ============================
+    // ÚLTIMAS 15 NOTICIAS
+    // ORDEN ANTIGUO -> NUEVO
+    // ============================
 
-} else {
+    let pending = items
+      .slice(0, 15)
+      .reverse();
 
-  // Sin parámetro "after"
-  // devolvemos únicamente la noticia más reciente
-  pending =
-    pending.slice(-1);
+    // ============================
+    // FILTRAR POR GUID
+    // ============================
 
-}
+    if (after) {
+
+      const index = pending.findIndex(item => {
+
+        let guid = "";
+
+        if (item.guid) {
+
+          if (typeof item.guid[0] === "string") {
+
+            guid = item.guid[0];
+
+          } else if (item.guid[0]._ ) {
+
+            guid = item.guid[0]._;
+
+          }
+
+        }
+
+        return guid === after;
+
+      });
+
+      if (index >= 0) {
+
+        pending = pending.slice(index + 1);
+
+      } else {
+
+        pending = [];
+
+      }
+
+    } else {
+
+      pending = pending.slice(-1);
+
+    }
 
     const news = [];
+
+    // ============================
+    // RECORRER NOTICIAS
+    // ============================
 
     for (const item of pending) {
 
@@ -90,152 +99,289 @@ if (after) {
 
         let guid = "";
 
-if (item.guid) {
+        if (item.guid) {
 
-  if (typeof item.guid[0] === "string") {
+          if (typeof item.guid[0] === "string") {
 
-    guid = item.guid[0];
+            guid = item.guid[0];
 
-  } else if (item.guid[0]._ ) {
+          } else if (item.guid[0]._ ) {
 
-    guid = item.guid[0]._;
+            guid = item.guid[0]._;
 
-  }
+          }
 
-}
+        }
 
         const link =
-          item.link[0];
+          item.link
+            ? item.link[0]
+            : "";
 
-        // ABRIR LA NOTICIA
+        // ============================
+        // DESCARGAR NOTICIA
+        // ============================
 
-        const response =
-          await axios.get(
-            link,
-            {
-              headers: {
-                "User-Agent":
-                  "Mozilla/5.0"
-              }
-            }
-          );
+        const response = await axios.get(
+          link,
+          {
+            headers: {
+              "User-Agent": "Mozilla/5.0"
+            },
+            timeout: 15000
+          }
+        );
 
-        const $ =
-          cheerio.load(response.data);
+        const $ = cheerio.load(response.data);
 
+        // ============================
+        // FUNCIONES AUXILIARES
+        // ============================
+
+        const cleanText = (text = "") =>
+          text.replace(/\s+/g, " ").trim();
+
+        const firstText = (...selectors) => {
+
+          for (const selector of selectors) {
+
+            const value =
+              cleanText(
+                $(selector)
+                  .first()
+                  .text()
+              );
+
+            if (value) return value;
+
+          }
+
+          return "";
+
+        };
+
+        const firstAttr = (attr, ...selectors) => {
+
+          for (const selector of selectors) {
+
+            const value =
+              $(selector)
+                .first()
+                .attr(attr);
+
+            if (value) return value.trim();
+
+          }
+
+          return "";
+
+        };        
+        // ============================
         // TITULAR
+        // ============================
 
         const title =
-          $("#titularN")
-            .first()
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
+          firstText(
+            "#titularN",
+            "h1"
+          ) ||
+          firstAttr(
+            "content",
+            'meta[property="og:title"]'
+          );
 
+        // ============================
         // SUBTÍTULO
+        // ============================
 
         const subtitle =
-          $("h2.subtitulo")
-            .first()
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
+          firstText(
+            "h2.subtitulo",
+            ".subtitulo",
+            "h2"
+          );
 
+        // ============================
         // AUTOR
+        // ============================
 
         const author =
-          $("span.autor")
-            .first()
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
+          firstText(
+            "span.autor",
+            ".autor",
+            ".nombre-autor"
+          );
 
+        // ============================
         // IMAGEN
+        // ============================
 
         let image =
-          $('meta[property="og:image"]')
-            .attr("content") || "";
+          firstAttr(
+            "content",
+            'meta[property="og:image"]'
+          );
 
         if (!image) {
 
           image =
-            $("img.img-fluid")
-              .first()
-              .attr("src") || "";
+            firstAttr(
+              "src",
+              ".img-titular img",
+              "img.img-fluid",
+              "article img"
+            );
 
         }
 
+        if (image && image.startsWith("/")) {
+
+          image =
+            "https://lavozdetomelloso.com" +
+            image;
+
+        }
+
+        // ============================
         // CATEGORÍA
+        // ============================
 
-        let category = "";
+        const category =
+          firstText(
+            'a[href*="/Categoria/"]',
+            ".categoria",
+            ".category"
+          );
 
-        const categoryElement =
-          $('div.d-flex.justify-content-center a[href*="/Categoria/"]')
-            .first();
+        // ============================
+        // CUERPO DE LA NOTICIA
+        // ============================
 
-        if (categoryElement.length) {
+        const article =
+          $(".text-noticia")
+            .first()
+            .clone();
 
-          category =
-            categoryElement
-              .text()
-              .replace(/\s+/g, " ")
-              .trim();
+        article
+          .find("script,style,iframe")
+          .remove();
 
-        }
+        article
+          .find("img")
+          .remove();
 
-        // CONTENIDO
-        let articleContent = "";
+        article
+          .find("figure")
+          .remove();
 
-        $("p").each((i, el) => {
+        article
+          .find(".publicidad")
+          .remove();
+
+        article
+          .find(".ads")
+          .remove();
+
+        let htmlContent =
+          article.html() || "";
+
+        let textContent = "";
+
+        article.find("p").each((i, el) => {
 
           const text =
-            $(el)
-              .text()
-              .replace(/\s+/g, " ")
-              .trim();
+            cleanText(
+              $(el).text()
+            );
 
-          if (
+          if (text.length < 25) {
 
-            text.length > 80 &&
-
-            !text.includes("Publicidad") &&
-
-            !text.includes("Relacionados") &&
-
-            !text.includes("WhatsApp") &&
-
-            !text.includes("Facebook") &&
-
-            !text.includes("Twitter") &&
-
-            !text.includes("Telegram")
-
-          ) {
-
-            articleContent +=
-              `<p>${text}</p>`;
+            return;
 
           }
 
+          if (
+
+            text.includes("Publicidad") ||
+
+            text.includes("Relacionados") ||
+
+            text.includes("WhatsApp") ||
+
+            text.includes("Facebook") ||
+
+            text.includes("Twitter") ||
+
+            text.includes("Telegram")
+
+          ) {
+
+            return;
+
+          }
+
+          textContent +=
+            text + "\n\n";
+
         });
-                // FECHA
+
+        textContent =
+          textContent.trim();
+
+        // ============================
+        // FECHA
+        // ============================
 
         const pubDate =
           item.pubDate
             ? item.pubDate[0]
-            : "";
+            : (
+                item["a10:updated"]
+                  ? item["a10:updated"][0]
+                  : ""
+              );
 
+        // ============================
         // RESUMEN
+        // ============================
 
-        const summary =
-          subtitle ||
-          (
-            item.description
-              ? item.description[0]
-              : ""
+        let summary = "";
+
+        if (subtitle) {
+
+          summary = subtitle;
+
+        } else {
+
+          summary =
+            cleanText(
+              textContent.substring(0, 220)
+            );
+
+          if (summary.length === 220) {
+
+            summary += "...";
+
+          }
+
+        }
+
+        // Si no hay contenido útil,
+        // descartamos la noticia
+
+        if (!title || !textContent) {
+
+          console.log(
+            "Noticia descartada:",
+            link
           );
 
+          continue;
+
+        }
+                // ============================
         // AÑADIR AL ARRAY
+        // ============================
 
         news.push({
 
@@ -255,7 +401,9 @@ if (item.guid) {
 
           summary,
 
-          content: articleContent,
+          content: textContent,
+
+          html: htmlContent,
 
           pubDate
 
@@ -263,9 +411,9 @@ if (item.guid) {
 
       } catch (err) {
 
-        console.log(
+        console.error(
 
-          "Error noticia:",
+          "Error procesando noticia:",
 
           item.link
             ? item.link[0]
@@ -279,7 +427,31 @@ if (item.guid) {
 
     }
 
-    // DEVOLVER JSON
+    // ============================
+    // ORDENAR POR FECHA
+    // ============================
+
+    news.sort((a, b) => {
+
+      return new Date(a.pubDate) - new Date(b.pubDate);
+
+    });
+
+    // ============================
+    // ÚLTIMO GUID DEVUELTO
+    // ============================
+
+    const lastGuid =
+
+      news.length > 0
+
+        ? news[news.length - 1].guid
+
+        : after;
+
+    // ============================
+    // RESPUESTA JSON
+    // ============================
 
     res.setHeader(
 
@@ -289,21 +461,29 @@ if (item.guid) {
 
     );
 
-    res
-      .status(200)
-      .json(news);
+    res.status(200).json({
+
+      generatedAt: new Date().toISOString(),
+
+      count: news.length,
+
+      lastGuid,
+
+      news
+
+    });
 
   } catch (err) {
 
     console.error(err);
 
-    res
-      .status(500)
-      .json({
+    res.status(500).json({
 
-        error: err.message
+      error: true,
 
-      });
+      message: err.message
+
+    });
 
   }
 

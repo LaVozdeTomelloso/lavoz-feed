@@ -88,10 +88,21 @@ if (after) {
 
       try {
 
-        const guid =
-          item.guid
-            ? String(item.guid[0])
-            : "";
+        let guid = "";
+
+if (item.guid) {
+
+  if (typeof item.guid[0] === "string") {
+
+    guid = item.guid[0];
+
+  } else if (item.guid[0]._ ) {
+
+    guid = item.guid[0]._;
+
+  }
+
+}
 
         const link =
           item.link[0];

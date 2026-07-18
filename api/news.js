@@ -236,7 +236,10 @@ let pending =
           item.pubDate
             ? item.pubDate[0]
             : new Date().toISOString();
-
+        const pubDateLocal =
+  new Date(pubDate).toLocaleString("sv-SE", {
+    timeZone: "Europe/Madrid"
+  });
         if (!title || !articleContent) {
 
           console.log(
@@ -283,7 +286,8 @@ const readingTime =
 
   readingTime,
 
-  pubDate
+  pubDate,
+pubDateLocal
 
 });
       } catch (err) {

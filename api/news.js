@@ -28,10 +28,9 @@ module.exports = async (req, res) => {
     const items =
       channel.item || [];
 
-    let pending =
-      items
-        .slice(0, 15)
-        .reverse();
+let pending =
+  [...items]
+    .reverse();
 
     if (after) {
 
@@ -65,7 +64,31 @@ module.exports = async (req, res) => {
 
       } else {
 
-        pending = [];
+        return res.status(409).json({
+
+          status: "desynchronized",
+
+          message: "The requested GUID is no longer present in the RSS feed.",
+
+          requestedGuid: after,
+
+          firstGuid:
+            items.length
+              ? (typeof items[items.length - 1].guid[0] === "string"
+                  ? items[items.length - 1].guid[0]
+                  : items[items.length - 1].guid[0]._)
+              : null,
+
+          lastGuid:
+            items.length
+              ? (typeof items[0].guid[0] === "string"
+                  ? items[0].guid[0]
+                  : items[0].guid[0]._)
+              : null,
+
+          feedItems: items.length
+
+        });
 
       }
 
@@ -301,13 +324,25 @@ const readingTime =
 
     res.status(200).json({
 
+      status: "ok",
+
       generatedAt:
         new Date().toISOString(),
 
       count:
         news.length,
 
+      firstGuid:
+        items.length
+          ? (typeof items[items.length - 1].guid[0] === "string"
+              ? items[items.length - 1].guid[0]
+              : items[items.length - 1].guid[0]._)
+          : null,
+
       lastGuid,
+
+      feedItems:
+        items.length,
 
       news
 

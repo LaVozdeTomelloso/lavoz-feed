@@ -17,90 +17,48 @@ module.exports = async (req, res) => {
       }
     );
 
-    const rssData =
-      await xml2js.parseStringPromise(
-        rssResponse.data
-      );
+    const rssData = await xml2js.parseStringPromise(rssResponse.data);
 
-    const channel =
-      rssData.rss.channel[0];
+    const channel = rssData.rss.channel[0];
+    const items = channel.item || [];
 
-    const items =
-      channel.item || [];
+    let pending = [...items].reverse();
 
-let pending =
-  [...items]
-    .reverse();
+    // ==========================================================
+    // NUEVA LÓGICA (ya no depende de la posición del GUID)
+    // ==========================================================
 
     if (after) {
 
-      const index =
-        pending.findIndex(item => {
+      const afterGuid = Number(after);
 
-          let guid = "";
+      pending = pending.filter(item => {
 
-          if (item.guid) {
+        let guid = "";
 
-            if (typeof item.guid[0] === "string") {
-
-              guid = item.guid[0];
-
-            } else if (item.guid[0]._) {
-
-              guid = item.guid[0]._;
-
-            }
-
+        if (item.guid) {
+          if (typeof item.guid[0] === "string") {
+            guid = item.guid[0];
+          } else if (item.guid[0]._) {
+            guid = item.guid[0]._;
           }
+        }
 
-          return guid === after;
+        return Number(guid) > afterGuid;
 
-        });
-
-      if (index >= 0) {
-
-        pending =
-          pending.slice(index + 1);
-
-      } else {
-
-        return res.status(409).json({
-
-          status: "desynchronized",
-
-          message: "The requested GUID is no longer present in the RSS feed.",
-
-          requestedGuid: after,
-
-          firstGuid:
-            items.length
-              ? (typeof items[items.length - 1].guid[0] === "string"
-                  ? items[items.length - 1].guid[0]
-                  : items[items.length - 1].guid[0]._)
-              : null,
-
-          lastGuid:
-            items.length
-              ? (typeof items[0].guid[0] === "string"
-                  ? items[0].guid[0]
-                  : items[0].guid[0]._)
-              : null,
-
-          feedItems: items.length
-
-        });
-
-      }
+      });
 
     } else {
 
-      pending =
-        pending.slice(-1);
+      pending = pending.slice(-1);
 
     }
 
+    // ==========================================================
+
     const news = [];
-        for (const item of pending) {
+
+    for (const item of pending) {
 
       try {
 
@@ -120,54 +78,44 @@ let pending =
 
         }
 
-        const link =
-          item.link[0];
+        const link = item.link[0];
 
-        const response =
-          await axios.get(link, {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0"
-            }
-          });
+        const response = await axios.get(link, {
+          headers: {
+            "User-Agent": "Mozilla/5.0"
+          }
+        });
 
-        const $ =
-          cheerio.load(response.data);
+        const $ = cheerio.load(response.data);
 
-        const title =
-          $("#titularN")
-            .first()
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
+        const title = $("#titularN")
+          .first()
+          .text()
+          .replace(/\s+/g, " ")
+          .trim();
 
-        const subtitle =
-          $("h2.subtitulo")
-            .first()
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
+        const subtitle = $("h2.subtitulo")
+          .first()
+          .text()
+          .replace(/\s+/g, " ")
+          .trim();
 
-        const author =
-          $("span.autor")
-            .first()
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
+        const author = $("span.autor")
+          .first()
+          .text()
+          .replace(/\s+/g, " ")
+          .trim();
 
         let image =
-          $('meta[property="og:image"]')
-            .attr("content") || "";
+          $('meta[property="og:image"]').attr("content") || "";
 
         if (!image) {
-
-          image =
-            $("img.img-fluid")
-              .first()
-              .attr("src") || "";
-
+          image = $("img.img-fluid")
+            .first()
+            .attr("src") || "";
         }
-                let category = "";
+
+        let category = "";
 
         const categoryElement =
           $('div.d-flex.justify-content-center a[href*="/Categoria/"]')
@@ -175,11 +123,10 @@ let pending =
 
         if (categoryElement.length) {
 
-          category =
-            categoryElement
-              .text()
-              .replace(/\s+/g, " ")
-              .trim();
+          category = categoryElement
+            .text()
+            .replace(/\s+/g, " ")
+            .trim();
 
         }
 
@@ -187,28 +134,19 @@ let pending =
 
         $("p").each((i, el) => {
 
-          const text =
-            $(el)
-              .text()
-              .replace(/\s+/g, " ")
-              .trim();
+          const text = $(el)
+            .text()
+            .replace(/\s+/g, " ")
+            .trim();
 
           if (
-
             text.length > 80 &&
-
             !text.includes("Publicidad") &&
-
             !text.includes("Relacionados") &&
-
             !text.includes("WhatsApp") &&
-
             !text.includes("Facebook") &&
-
             !text.includes("Twitter") &&
-
             !text.includes("Telegram")
-
           ) {
 
             articleContent += text + "\n\n";
@@ -217,136 +155,106 @@ let pending =
 
         });
 
-        articleContent =
-          articleContent.trim();
-                const rawSummary =
-          subtitle ||
-          (
-            item.description
-              ? item.description[0]
-              : ""
-          );
+        articleContent = articleContent.trim();
 
-        const summary =
-          rawSummary
-            .replace(/\s+/g, " ")
-            .trim();
+        const rawSummary =
+          subtitle ||
+          (item.description ? item.description[0] : "");
+
+        const summary = rawSummary
+          .replace(/\s+/g, " ")
+          .trim();
 
         const pubDate =
           item.pubDate
             ? item.pubDate[0]
             : new Date().toISOString();
+
         const pubDateLocal =
-  new Date(pubDate).toLocaleString("sv-SE", {
-    timeZone: "Europe/Madrid"
-  });
+          new Date(pubDate).toLocaleString("sv-SE", {
+            timeZone: "Europe/Madrid"
+          });
+
         if (!title || !articleContent) {
 
-          console.log(
-            "Noticia descartada:",
-            link
-          );
+          console.log("Noticia descartada:", link);
 
           continue;
 
         }
-const wordCount =
-  articleContent
-    .replace(/<[^>]+>/g, "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .length;
 
-const readingTime =
-  Math.max(
-    1,
-    Math.ceil(wordCount / 200)
-  );
+        const wordCount =
+          articleContent
+            .replace(/<[^>]+>/g, "")
+            .split(/\s+/)
+            .filter(Boolean)
+            .length;
+
+        const readingTime =
+          Math.max(1, Math.ceil(wordCount / 200));
+
         news.push({
 
-  guid,
+          guid,
+          link,
+          title,
+          subtitle,
+          author,
+          category,
+          image,
+          summary,
+          content: articleContent,
+          wordCount,
+          readingTime,
+          pubDate,
+          pubDateLocal
 
-  link,
+        });
 
-  title,
-
-  subtitle,
-
-  author,
-
-  category,
-
-  image,
-
-  summary,
-
-  content: articleContent,
-
-  wordCount,
-
-  readingTime,
-
-  pubDate,
-pubDateLocal
-
-});
       } catch (err) {
 
-        console.log(
-
-          "Error noticia:",
-
-          err.message
-
-        );
+        console.log("Error noticia:", err.message);
 
       }
 
     }
-        news.sort((a, b) =>
 
-      new Date(a.pubDate) -
-      new Date(b.pubDate)
-
+    news.sort(
+      (a, b) =>
+        new Date(a.pubDate) -
+        new Date(b.pubDate)
     );
 
     const lastGuid =
-
       news.length
-
         ? news[news.length - 1].guid
-
         : after;
 
     res.setHeader(
-
       "Content-Type",
-
       "application/json; charset=utf-8"
-
     );
 
     res.status(200).json({
 
       status: "ok",
 
-      generatedAt:
-        new Date().toISOString(),
+      generatedAt: new Date().toISOString(),
 
-      count:
-        news.length,
+      count: news.length,
 
       firstGuid:
         items.length
-          ? (typeof items[items.length - 1].guid[0] === "string"
-              ? items[items.length - 1].guid[0]
-              : items[items.length - 1].guid[0]._)
+          ? (
+              typeof items[items.length - 1].guid[0] === "string"
+                ? items[items.length - 1].guid[0]
+                : items[items.length - 1].guid[0]._
+            )
           : null,
 
       lastGuid,
 
-      feedItems:
-        items.length,
+      feedItems: items.length,
 
       news
 

@@ -215,40 +215,18 @@ const pending = [...items]
         new Date(b.pubDate)
     );
 
-    const lastGuid =
-      news.length
-        ? news[news.length - 1].guid
-        : after;
+res.setHeader(
+  "Content-Type",
+  "application/json; charset=utf-8"
+);
 
-    res.setHeader(
-      "Content-Type",
-      "application/json; charset=utf-8"
-    );
-
-    res.status(200).json({
-
-      status: "ok",
-
-      generatedAt: new Date().toISOString(),
-
-      count: news.length,
-
-      firstGuid:
-        items.length
-          ? (
-              typeof items[items.length - 1].guid[0] === "string"
-                ? items[items.length - 1].guid[0]
-                : items[items.length - 1].guid[0]._
-            )
-          : null,
-
-      lastGuid,
-
-      feedItems: items.length,
-
-      news
-
-    });
+res.status(200).json({
+  status: "ok",
+  generatedAt: new Date().toISOString(),
+  count: news.length,
+  feedItems: items.length,
+  news
+});
 
   } catch (error) {
 

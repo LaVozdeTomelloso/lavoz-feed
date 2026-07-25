@@ -40,6 +40,17 @@ function extractImage(html = "") {
   const $ = cheerio.load(html);
   return $("img").first().attr("src") || "";
 }
+function limitBody(text = "", max = 4000) {
+
+  if (text.length <= max) {
+    return text;
+  }
+
+  const cut = text.lastIndexOf(" ", max);
+
+  return text.substring(0, cut > 0 ? cut : max);
+
+}
 async function loadFeed() {
 
   const { data } = await axios.get(ATOM_URL, HTTP_HEADERS);
@@ -96,7 +107,7 @@ async function buildNews(entry) {
   const image = extractImage(html);
 
   const body = htmlToText(html);
-
+ 
   const words = body
     .split(/\s+/)
     .filter(Boolean)
@@ -123,7 +134,7 @@ category: normalizeCategory(category || section),
 
     image,
 
-    body,
+    body: limitBody(body),
 
     wordCount: words,
 

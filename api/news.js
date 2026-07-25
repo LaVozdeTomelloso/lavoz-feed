@@ -19,27 +19,15 @@ function cleanText(text = "") {
     .trim();
 }
 
-function htmlToText(html = "") {
-  const $ = cheerio.load(html);
-
-  $("img").remove();
-
-  return cleanText($.text());
+function extractGuid(url = "") {
+  const match = url.match(/\/(\d+)\//);
+  return match ? match[1] : "";
 }
 
 function readingTime(words) {
   return Math.max(1, Math.ceil(words / 200));
 }
 
-function extractGuid(url = "") {
-  const match = url.match(/\/(\d+)\//);
-  return match ? match[1] : "";
-}
-
-function extractImage(html = "") {
-  const $ = cheerio.load(html);
-  return $("img").first().attr("src") || "";
-}
 function limitBody(text = "", max = 4000) {
 
   if (text.length <= max) {
@@ -55,9 +43,64 @@ function limitBody(text = "", max = 4000) {
   return text.substring(0, max);
 
 }
+
+function normalizeCategory(category = "") {
+  return cleanText(category).replace(/\s+/g, " ");
+}
+
+function normalizeAuthor(author = "") {
+  return cleanText(author);
+}
+
+function parseContent(html = "", subtitle = "") {
+
+  const $ = cheerio.load(html);
+
+  const image = $("img").first().attr("src") || "";
+
+  $("img").remove();
+  $("figure").remove();
+  $("script").remove();
+  $("style").remove();
+  $("noscript").remove();
+
+  if (subtitle) {
+    $("strong").each((_, el) => {
+      const txt = cleanText($(el).text());
+
+      if (txt.toLowerCase() === subtitle.toLowerCase()) {
+        $(el).closest("p").remove();
+      }
+    });
+  }
+
+  $("p").each((_, el) => {
+    if (!cleanText($(el).text())) {
+      $(el).remove();
+    }
+  });
+
+  const body = cleanText($.text());
+
+  const wordCount = body
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+
+  return {
+    image,
+    body,
+    wordCount
+  };
+
+}
+
 async function loadFeed() {
 
-  const { data } = await axios.get(ATOM_URL, HTTP_HEADERS);
+  const { data } = await axios.get(
+    ATOM_URL,
+    HTTP_HEADERS
+  );
 
   const parser = new xml2js.Parser({
     explicitArray: false,
@@ -67,17 +110,21 @@ async function loadFeed() {
 
   const xml = await parser.parseStringPromise(data);
 
-  const entries = xml.feed.entry || [];
+  let entries = xml.feed?.entry || [];
 
-  return Array.isArray(entries)
-    ? entries.slice(0, MAX_NEWS)
-    : [entries];
+  if (!Array.isArray(entries)) {
+    entries = [entries];
+  }
+
+  return entries.slice(0, MAX_NEWS);
 
 }
 
 async function buildNews(entry) {
 
-  const title = cleanText(entry.title?._ || entry.title || "");
+  const title = cleanText(
+    entry.title?._ || entry.title || ""
+  );
 
   const link =
     entry.link?.href ||
@@ -101,21 +148,17 @@ async function buildNews(entry) {
 
   const section = cleanText(parts[0] || "");
 
-  const subtitle = cleanText(parts.slice(1).join("|||"));
+  const subtitle = cleanText(
+    parts.slice(1).join("|||")
+  );
 
   const html =
     entry.content?._ ||
     entry.content ||
     "";
 
-  const image = extractImage(html);
-
-  const body = htmlToText(html);
- 
-  const words = body
-    .split(/\s+/)
-    .filter(Boolean)
-    .length;
+  const parsed = parseContent(html, subtitle);
+    const words = parsed.wordCount;
 
   return {
 
@@ -125,20 +168,23 @@ async function buildNews(entry) {
 
     subtitle,
 
-category: normalizeCategory(category || section),
+    category: normalizeCategory(
+      category || section
+    ),
+
     author: normalizeAuthor(
-  entry.author?.name ||
-  entry.author ||
-  ""
-),
+      entry.author?.name ||
+      entry.author ||
+      ""
+    ),
 
     date: entry.updated,
 
     link,
 
-    image,
+    image: parsed.image,
 
-    body: limitBody(body),
+    body: limitBody(parsed.body),
 
     wordCount: words,
 
@@ -147,6 +193,7 @@ category: normalizeCategory(category || section),
   };
 
 }
+
 module.exports = async (req, res) => {
 
   try {
@@ -156,12 +203,15 @@ module.exports = async (req, res) => {
     const news = [];
 
     for (const entry of entries) {
-      news.push(await buildNews(entry));
+      news.push(
+        await buildNews(entry)
+      );
     }
 
     news.sort(
       (a, b) =>
-        new Date(a.date) - new Date(b.date)
+        new Date(a.date) -
+        new Date(b.date)
     );
 
     return res.status(200).json({
@@ -191,55 +241,3 @@ module.exports = async (req, res) => {
   }
 
 };
-function htmlToText(html = "", subtitle = "") {
-
-  const $ = cheerio.load(html);
-
-  $("img").remove();
-
-  $("figure").remove();
-
-  $("script").remove();
-
-  $("style").remove();
-
-  $("noscript").remove();
-
-  $("strong").each((i, el) => {
-
-    const txt = cleanText($(el).text());
-
-    if (
-      subtitle &&
-      txt.toLowerCase() === subtitle.toLowerCase()
-    ) {
-      $(el).closest("p").remove();
-    }
-
-  });
-
-  $("p").each((i, el) => {
-
-    const txt = cleanText($(el).text());
-
-    if (!txt) {
-      $(el).remove();
-    }
-
-  });
-
-  return cleanText($.text());
-
-}
-function normalizeCategory(category = "") {
-
-  return cleanText(category)
-    .replace(/\s+/g, " ");
-
-}
-
-function normalizeAuthor(author = "") {
-
-  return cleanText(author);
-
-}

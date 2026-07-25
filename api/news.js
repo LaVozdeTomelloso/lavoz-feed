@@ -3,7 +3,7 @@ const cheerio = require("cheerio");
 const xml2js = require("xml2js");
 
 const ATOM_URL = "https://lavoz-feed.vercel.app/atom.xml";
-const MAX_NEWS = Number(process.env.NEWS_WINDOW || 30);
+const MAX_NEWS = Number(process.env.NEWS_WINDOW || 10);
 
 const HTTP_HEADERS = {
   headers: {

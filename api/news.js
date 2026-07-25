@@ -46,9 +46,13 @@ function limitBody(text = "", max = 4000) {
     return text;
   }
 
-  const cut = text.lastIndexOf(" ", max);
+  const cut = text.lastIndexOf(".", max);
 
-  return text.substring(0, cut > 0 ? cut : max);
+  if (cut > 0) {
+    return text.substring(0, cut + 1);
+  }
+
+  return text.substring(0, max);
 
 }
 async function loadFeed() {

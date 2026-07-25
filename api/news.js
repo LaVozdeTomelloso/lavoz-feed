@@ -2,11 +2,24 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 const xml2js = require("xml2js");
 
+/**
+ * Número máximo de noticias que devolverá el endpoint.
+ * Se puede cambiar desde Vercel con NEWS_WINDOW.
+ */
+const MAX_NEWS = Number(process.env.NEWS_WINDOW || 30);
+
+/**
+ * Cabecera común para todas las peticiones HTTP.
+ */
+const HTTP_HEADERS = {
+  headers: {
+    "User-Agent": "Mozilla/5.0"
+  }
+};
+
 module.exports = async (req, res) => {
 
   try {
-
-    const after = String(req.query.after || "").trim();
 
     const rssResponse = await axios.get(
       "https://lavozdetomelloso.com/rss",
@@ -22,39 +35,16 @@ module.exports = async (req, res) => {
     const channel = rssData.rss.channel[0];
     const items = channel.item || [];
 
-    let pending = [...items].reverse();
-
-    // ==========================================================
-    // NUEVA LÓGICA (ya no depende de la posición del GUID)
-    // ==========================================================
-
-    if (after) {
-
-      const afterGuid = Number(after);
-
-      pending = pending.filter(item => {
-
-        let guid = "";
-
-        if (item.guid) {
-          if (typeof item.guid[0] === "string") {
-            guid = item.guid[0];
-          } else if (item.guid[0]._) {
-            guid = item.guid[0]._;
-          }
-        }
-
-        return Number(guid) > afterGuid;
-
-      });
-
-    } else {
-
-      pending = pending.slice(-1);
-
-    }
-
-    // ==========================================================
+   /**
+ * Nos quedamos únicamente con una ventana de las noticias
+ * más recientes del RSS.
+ *
+ * El endpoint ya no decide qué es nuevo.
+ * Esa responsabilidad pasa a n8n.
+ */
+const pending = [...items]
+  .reverse()
+  .slice(-MAX_NEWS);
 
     const news = [];
 

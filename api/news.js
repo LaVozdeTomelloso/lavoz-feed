@@ -3,7 +3,7 @@ const cheerio = require("cheerio");
 const xml2js = require("xml2js");
 
 const ATOM_URL = "https://lavoz-feed.vercel.app/atom.xml";
-const MAX_NEWS = Number(process.env.NEWS_WINDOW || 10);
+const MAX_NEWS = Number(process.env.NEWS_WINDOW || 20);
 
 const HTTP_HEADERS = {
   headers: {
@@ -11,7 +11,7 @@ const HTTP_HEADERS = {
   },
   timeout: 15000
 };
-
+const MAX_NEWS 
 function cleanText(text = "") {
   return text
     .replace(/\u00A0/g, " ")

@@ -116,7 +116,7 @@ async function loadFeed() {
     entries = [entries];
   }
 
-  return entries.slice(0, MAX_NEWS);
+  return entries.slice(-MAX_NEWS);
 
 }
 

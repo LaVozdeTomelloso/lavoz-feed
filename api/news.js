@@ -2,237 +2,172 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 const xml2js = require("xml2js");
 
-/**
- * Número máximo de noticias que devolverá el endpoint.
- * Se puede cambiar desde Vercel con NEWS_WINDOW.
- */
+const ATOM_URL = "https://lavoz-feed.vercel.app/atom.xml";
 const MAX_NEWS = Number(process.env.NEWS_WINDOW || 30);
 
-/**
- * Cabecera común para todas las peticiones HTTP.
- */
 const HTTP_HEADERS = {
   headers: {
     "User-Agent": "Mozilla/5.0"
-  }
+  },
+  timeout: 15000
 };
 
+function cleanText(text = "") {
+  return text
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function htmlToText(html = "") {
+  const $ = cheerio.load(html);
+
+  $("img").remove();
+
+  return cleanText($.text());
+}
+
+function readingTime(words) {
+  return Math.max(1, Math.ceil(words / 200));
+}
+
+function extractGuid(url = "") {
+  const match = url.match(/\/(\d+)\//);
+  return match ? match[1] : "";
+}
+
+function extractImage(html = "") {
+  const $ = cheerio.load(html);
+  return $("img").first().attr("src") || "";
+}
+async function loadFeed() {
+
+  const { data } = await axios.get(ATOM_URL, HTTP_HEADERS);
+
+  const parser = new xml2js.Parser({
+    explicitArray: false,
+    mergeAttrs: true,
+    trim: true
+  });
+
+  const xml = await parser.parseStringPromise(data);
+
+  const entries = xml.feed.entry || [];
+
+  return Array.isArray(entries)
+    ? entries.slice(0, MAX_NEWS)
+    : [entries];
+
+}
+
+async function buildNews(entry) {
+
+  const title = cleanText(entry.title?._ || entry.title || "");
+
+  const link =
+    entry.link?.href ||
+    entry.id ||
+    "";
+
+  const guid = extractGuid(link);
+
+  const category = cleanText(
+    entry.category_text ||
+    entry.category ||
+    ""
+  );
+
+  const summary =
+    entry.summary?._ ||
+    entry.summary ||
+    "";
+
+  const parts = summary.split("|||");
+
+  const section = cleanText(parts[0] || "");
+
+  const subtitle = cleanText(parts.slice(1).join("|||"));
+
+  const html =
+    entry.content?._ ||
+    entry.content ||
+    "";
+
+  const image = extractImage(html);
+
+  const body = htmlToText(html);
+
+  const words = body
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+
+  return {
+
+    guid,
+
+    title,
+
+    subtitle,
+
+category: normalizeCategory(category || section),
+    author: normalizeAuthor(
+  entry.author?.name ||
+  entry.author ||
+  ""
+),
+
+    date: entry.updated,
+
+    link,
+
+    image,
+
+    body,
+
+    wordCount: words,
+
+    readingTime: readingTime(words)
+
+  };
+
+}
 module.exports = async (req, res) => {
 
   try {
 
-    const rssResponse = await axios.get(
-      "https://lavozdetomelloso.com/rss",
-      {
-        headers: {
-          "User-Agent": "Mozilla/5.0"
-        }
-      }
-    );
-
-    const rssData = await xml2js.parseStringPromise(rssResponse.data);
-
-    const channel = rssData.rss.channel[0];
-    const items = channel.item || [];
-
-   /**
- * Nos quedamos únicamente con una ventana de las noticias
- * más recientes del RSS.
- *
- * El endpoint ya no decide qué es nuevo.
- * Esa responsabilidad pasa a n8n.
- */
-const pending = [...items]
-  .reverse()
-  .slice(-MAX_NEWS);
+    const entries = await loadFeed();
 
     const news = [];
 
-    for (const item of pending) {
-
-      try {
-
-        let guid = "";
-
-        if (item.guid) {
-
-          if (typeof item.guid[0] === "string") {
-
-            guid = item.guid[0];
-
-          } else if (item.guid[0]._) {
-
-            guid = item.guid[0]._;
-
-          }
-
-        }
-
-        const link = item.link[0];
-
-        const response = await axios.get(link, {
-          headers: {
-            "User-Agent": "Mozilla/5.0"
-          }
-        });
-
-        const $ = cheerio.load(response.data);
-
-        const title = $("#titularN")
-          .first()
-          .text()
-          .replace(/\s+/g, " ")
-          .trim();
-
-        const subtitle = $("h2.subtitulo")
-          .first()
-          .text()
-          .replace(/\s+/g, " ")
-          .trim();
-
-        const author = $("span.autor")
-          .first()
-          .text()
-          .replace(/\s+/g, " ")
-          .trim();
-
-        let image =
-          $('meta[property="og:image"]').attr("content") || "";
-
-        if (!image) {
-          image = $("img.img-fluid")
-            .first()
-            .attr("src") || "";
-        }
-
-        let category = "";
-
-        const categoryElement =
-          $('div.d-flex.justify-content-center a[href*="/Categoria/"]')
-            .first();
-
-        if (categoryElement.length) {
-
-          category = categoryElement
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
-
-        }
-
-        let articleContent = "";
-
-        $("p").each((i, el) => {
-
-          const text = $(el)
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
-
-          if (
-            text.length > 80 &&
-            !text.includes("Publicidad") &&
-            !text.includes("Relacionados") &&
-            !text.includes("WhatsApp") &&
-            !text.includes("Facebook") &&
-            !text.includes("Twitter") &&
-            !text.includes("Telegram")
-          ) {
-
-            articleContent += text + "\n\n";
-
-          }
-
-        });
-
-        articleContent = articleContent.trim();
-
-        const rawSummary =
-          subtitle ||
-          (item.description ? item.description[0] : "");
-
-        const summary = rawSummary
-          .replace(/\s+/g, " ")
-          .trim();
-
-        const pubDate =
-          item.pubDate
-            ? item.pubDate[0]
-            : new Date().toISOString();
-
-        const pubDateLocal =
-          new Date(pubDate).toLocaleString("sv-SE", {
-            timeZone: "Europe/Madrid"
-          });
-
-        if (!title || !articleContent) {
-
-          console.log("Noticia descartada:", link);
-
-          continue;
-
-        }
-
-        const wordCount =
-          articleContent
-            .replace(/<[^>]+>/g, "")
-            .split(/\s+/)
-            .filter(Boolean)
-            .length;
-
-        const readingTime =
-          Math.max(1, Math.ceil(wordCount / 200));
-
-        news.push({
-
-          guid,
-          link,
-          title,
-          subtitle,
-          author,
-          category,
-          image,
-          summary,
-          content: articleContent,
-          wordCount,
-          readingTime,
-          pubDate,
-          pubDateLocal
-
-        });
-
-      } catch (err) {
-
-        console.log("Error noticia:", err.message);
-
-      }
-
+    for (const entry of entries) {
+      news.push(await buildNews(entry));
     }
 
     news.sort(
       (a, b) =>
-        new Date(a.pubDate) -
-        new Date(b.pubDate)
+        new Date(a.date) - new Date(b.date)
     );
 
-res.setHeader(
-  "Content-Type",
-  "application/json; charset=utf-8"
-);
+    return res.status(200).json({
 
-res.status(200).json({
-  status: "ok",
-  generatedAt: new Date().toISOString(),
-  count: news.length,
-  feedItems: items.length,
-  news
-});
+      status: "ok",
+
+      generatedAt: new Date().toISOString(),
+
+      count: news.length,
+
+      news
+
+    });
 
   } catch (error) {
 
-    res.status(500).json({
+    console.error(error);
 
-      error: true,
+    return res.status(500).json({
+
+      status: "error",
 
       message: error.message
 
@@ -241,3 +176,55 @@ res.status(200).json({
   }
 
 };
+function htmlToText(html = "", subtitle = "") {
+
+  const $ = cheerio.load(html);
+
+  $("img").remove();
+
+  $("figure").remove();
+
+  $("script").remove();
+
+  $("style").remove();
+
+  $("noscript").remove();
+
+  $("strong").each((i, el) => {
+
+    const txt = cleanText($(el).text());
+
+    if (
+      subtitle &&
+      txt.toLowerCase() === subtitle.toLowerCase()
+    ) {
+      $(el).closest("p").remove();
+    }
+
+  });
+
+  $("p").each((i, el) => {
+
+    const txt = cleanText($(el).text());
+
+    if (!txt) {
+      $(el).remove();
+    }
+
+  });
+
+  return cleanText($.text());
+
+}
+function normalizeCategory(category = "") {
+
+  return cleanText(category)
+    .replace(/\s+/g, " ");
+
+}
+
+function normalizeAuthor(author = "") {
+
+  return cleanText(author);
+
+}

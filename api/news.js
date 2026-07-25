@@ -11,7 +11,6 @@ const HTTP_HEADERS = {
   },
   timeout: 15000
 };
-const MAX_NEWS 
 function cleanText(text = "") {
   return text
     .replace(/\u00A0/g, " ")

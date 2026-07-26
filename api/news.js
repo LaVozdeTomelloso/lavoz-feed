@@ -145,16 +145,19 @@ async function buildNews(entry) {
 
   const parts = summary.split("|||");
 
-  const section = cleanText(parts[0] || "");
+const section = cleanText(parts[0] || "");
 
-  const subtitle = cleanText(
-    parts.slice(1).join("|||")
-  );
+let subtitle = "";
 
-  const html =
-    entry.content?._ ||
-    entry.content ||
-    "";
+if (parts.length > 1) {
+  subtitle = cleanText(parts[1]);
+
+  // Si el supuesto subtítulo es demasiado largo,
+  // realmente es el cuerpo del artículo.
+  if (subtitle.length > 300) {
+    subtitle = "";
+  }
+}
 
   const parsed = parseContent(html, subtitle);
     const words = parsed.wordCount;

@@ -143,7 +143,7 @@ async function buildNews(entry) {
     entry.summary ||
     "";
 
-  const parts = summary.split("|||");
+const parts = summary.split("|||");
 
 const section = cleanText(parts[0] || "");
 
@@ -159,8 +159,13 @@ if (parts.length > 1) {
   }
 }
 
-  const parsed = parseContent(html, subtitle);
-    const words = parsed.wordCount;
+const html =
+  entry.content?._ ||
+  entry.content ||
+  "";
+
+const parsed = parseContent(html, subtitle);
+const words = parsed.wordCount;
 
   return {
 

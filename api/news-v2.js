@@ -19,8 +19,7 @@ module.exports = async (req, res) => {
     const rssData = await xml2js.parseStringPromise(rssResponse.data);
 
     const items = rssData.rss.channel[0].item || [];
-  return res.status(200).json(items[0]);
-
+  
     const news = items
       .slice(0, 15)
       .reverse()
@@ -30,7 +29,7 @@ module.exports = async (req, res) => {
         return {
           guid: extractGuid(link),
           title: item.title?.[0] || "",
-          date: item.pubDate?.[0] || "",
+date: item["a10:updated"]?.[0] || "",
           link
         };
       });

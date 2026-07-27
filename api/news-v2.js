@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
     const rssData = await xml2js.parseStringPromise(rssResponse.data);
 
     const items = rssData.rss.channel[0].item || [];
-    console.log(items[0]);
+  return res.status(200).json(items[0]);
 
     const news = items
       .slice(0, 15)

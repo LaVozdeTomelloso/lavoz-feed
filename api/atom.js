@@ -13,7 +13,8 @@ module.exports = async (req, res) => {
       {
         headers: {
           "User-Agent": "Mozilla/5.0"
-        }
+        },
+        timeout: 5000
       }
     );
 
@@ -69,214 +70,207 @@ module.exports = async (req, res) => {
 
     });
 
- // ÚLTIMAS 15 NOTICIAS
-for (
-  const item of items
-    .slice(0, 15)
-    .reverse()
-) {
+    const selectedItems =
+      items.slice(0, 15).reverse();
 
-      try {
+    const feedItems =
+      await Promise.all(
 
-        const link =
-          item.link[0];
+        selectedItems.map(async (item) => {
 
-        // ABRIR NOTICIA
-        const response =
-          await axios.get(link, {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0"
+          const link =
+            item.link[0];
+
+          try {
+
+            const response =
+              await axios.get(link, {
+
+                headers: {
+                  "User-Agent":
+                    "Mozilla/5.0"
+                },
+
+                timeout: 4000
+
+              });
+
+            const $ =
+              cheerio.load(response.data);
+                        // TITULAR REAL
+            const title =
+              $("#titularN")
+                .first()
+                .text()
+                .replace(/\s+/g, " ")
+                .trim();
+
+            // SUBTÍTULO
+            const subtitle =
+              $("h2.subtitulo")
+                .first()
+                .text()
+                .replace(/\s+/g, " ")
+                .trim();
+
+            // AUTOR
+            const author =
+              $("span.autor")
+                .first()
+                .text()
+                .replace(/\s+/g, " ")
+                .trim();
+
+            // IMAGEN PRINCIPAL
+            let image =
+              $('meta[property="og:image"]')
+                .attr("content") || "";
+
+            // FALLBACK IMAGEN
+            if (!image) {
+
+              image =
+                $("img.img-fluid")
+                  .first()
+                  .attr("src") || "";
+
             }
-          });
 
-        const $ =
-          cheerio.load(response.data);
+            // CATEGORÍA
+            let category = "";
 
-        // TITULAR REAL
-        const title =
-          $("#titularN")
-            .first()
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
+            const categoryElement =
+              $('div.d-flex.justify-content-center a[href*="/Categoria/"]')
+                .first();
 
-        // SUBTÍTULO
-        const subtitle =
-          $("h2.subtitulo")
-            .first()
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
+            if (categoryElement.length) {
 
-        // AUTOR
-        const author =
-          $("span.autor")
-            .first()
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
+              category =
+                categoryElement
+                  .text()
+                  .replace(/\s+/g, " ")
+                  .trim();
 
-        // IMAGEN PRINCIPAL
-        let image =
-          $('meta[property="og:image"]')
-            .attr("content") || "";
+            }
 
-        // FALLBACK IMAGEN
-        if (!image) {
+            // CONTENIDO
+            let articleContent = "";
 
-          image =
-            $("img.img-fluid")
-              .first()
-              .attr("src") || "";
+            $("p").each((i, el) => {
 
-        }
+              const text =
+                $(el)
+                  .text()
+                  .replace(/\s+/g, " ")
+                  .trim();
 
-        // SOLO LA CATEGORÍA REAL
-        let category = "";
+              if (
 
-        const categoryElement =
-          $('div.d-flex.justify-content-center a[href*="/Categoria/"]')
-            .first();
+                text.length > 80 &&
 
-        if (categoryElement.length) {
+                !text.includes("Publicidad") &&
 
-          category =
-            categoryElement
-              .text()
-              .replace(/\s+/g, " ")
-              .trim();
+                !text.includes("Relacionados") &&
 
-        }
+                !text.includes("WhatsApp") &&
 
-        // CONTENIDO REAL DEL ARTÍCULO
-        let articleContent = "";
+                !text.includes("Facebook") &&
 
-        $("p").each((i, el) => {
+                !text.includes("Twitter") &&
 
-          const text =
-            $(el)
-              .text()
-              .replace(/\s+/g, " ")
-              .trim();
+                !text.includes("Telegram")
 
-          // FILTRAR BASURA
-          if (
+              ) {
 
-            text.length > 80 &&
+                articleContent += `<p>${text}</p>`;
 
-            !text.includes("Publicidad") &&
+              }
 
-            !text.includes("Relacionados") &&
+            });
 
-            !text.includes("WhatsApp") &&
+            // RESUMEN
+            const rawSummary =
+              subtitle ||
+              (
+                item.description
+                  ? item.description[0]
+                  : ""
+              );
 
-            !text.includes("Facebook") &&
+            const summary =
+              `${category || "Noticias"}|||${rawSummary}`;
 
-            !text.includes("Twitter") &&
-
-            !text.includes("Telegram")
-
-          ) {
-
-            articleContent += `
-              <p>${text}</p>
+            // CONTENIDO FINAL
+            const content = `
+              ${
+                image
+                  ? `<p><img src="${image}" alt="${title}" /></p>`
+                  : ""
+              }
+              ${
+                subtitle
+                  ? `<p><strong>${subtitle}</strong></p>`
+                  : ""
+              }
+              ${articleContent}
             `;
+                        // FECHA
+            const pubDate =
+              item.pubDate
+                ? new Date(item.pubDate[0])
+                : new Date();
+
+            // DEVOLVER EL ITEM (NO AÑADIRLO TODAVÍA)
+            return {
+
+              title,
+
+              id: link,
+
+              link,
+
+              description: summary,
+
+              content,
+
+              author: [
+                {
+                  name: author || "La Voz"
+                }
+              ],
+
+              category:
+                category
+                  ? [{ name: category }]
+                  : [],
+
+              date: pubDate
+
+            };
+
+          } catch (err) {
+
+            console.log(
+              "Error noticia:",
+              link,
+              err.message
+            );
+
+            return null;
 
           }
 
-        });
+        })
 
-        // RESUMEN
-const rawSummary =
-  subtitle ||
-  (
-    item.description
-      ? item.description[0]
-      : ""
-  );
+      );
 
-const summary =
-  `${category || "Noticias"}|||${rawSummary}`;
-        // CONTENIDO FINAL
-        const content = `
-
-          ${
-            image
-              ? `
-                <p>
-                  <img
-                    src="${image}"
-                    alt="${title}"
-                  />
-                </p>
-              `
-              : ""
-          }
-
-          ${
-            subtitle
-              ? `
-                <p>
-                  <strong>
-                    ${subtitle}
-                  </strong>
-                </p>
-              `
-              : ""
-          }
-
-          ${articleContent}
-
-        `;
-
-        // FECHA
-        const pubDate =
-          item.pubDate
-            ? new Date(item.pubDate[0])
-            : new Date();
-
-        // AÑADIR ITEM AL FEED
-        feed.addItem({
-
-          title: title,
-
-          id: link,
-
-          link: link,
-
-          description: summary,
-
-          content: content,
-
-          author: [
-            {
-              name:
-                author || "La Voz"
-            }
-          ],
-
-          category:
-            category
-              ? [{ name: category }]
-              : [],
-
-          date: pubDate
-
-        });
-
-      } catch (err) {
-
-        console.log(
-          "Error noticia:",
-          err.message
+      // AÑADIR SOLO LOS ITEMS VÁLIDOS
+      feedItems
+        .filter(Boolean)
+        .forEach(item =>
+          feed.addItem(item)
         );
-
-      }
-
-    }
-
-    // GENERAR XML ATOM
+        // GENERAR XML ATOM
     let atomXml =
       feed.atom1();
 
@@ -289,19 +283,27 @@ const summary =
 
     );
 
-    // DEVOLVER XML
+    // CABECERAS
     res.setHeader(
       "Content-Type",
       "application/atom+xml; charset=utf-8"
     );
 
-    res
+    // Cache corta para aliviar Vercel
+    res.setHeader(
+      "Cache-Control",
+      "s-maxage=60, stale-while-revalidate=300"
+    );
+
+    return res
       .status(200)
       .send(atomXml);
 
   } catch (error) {
 
-    res
+    console.error(error);
+
+    return res
       .status(500)
       .send(error.message);
 

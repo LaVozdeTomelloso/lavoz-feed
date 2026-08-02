@@ -71,7 +71,7 @@ module.exports = async (req, res) => {
     });
 
     const selectedItems =
-      items.slice(0, 100).reverse();
+      items.slice(0, 10).reverse();
 
     const feedItems =
       await Promise.all(

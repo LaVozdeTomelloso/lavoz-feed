@@ -9,14 +9,14 @@ module.exports = async (req, res) => {
 
     // DESCARGAR RSS ORIGINAL
     const rssResponse = await axios.get(
-      "https://lavozdetomelloso.com/rss",
-      {
-        headers: {
-          "User-Agent": "Mozilla/5.0"
-        },
-        timeout: 5000
-      }
-    );
+  "https://lavozdetomelloso.com/rss",
+  {
+    headers: {
+      "User-Agent": "Mozilla/5.0"
+    },
+    timeout: 15000
+  }
+);
 
     // PARSEAR RSS XML
     const rssData =
@@ -71,7 +71,7 @@ module.exports = async (req, res) => {
     });
 
     const selectedItems =
-      items.slice(0, 10).reverse();
+      items.slice(0, 5).reverse();
 
     const feedItems =
       await Promise.all(
@@ -84,16 +84,16 @@ module.exports = async (req, res) => {
           try {
 
             const response =
-              await axios.get(link, {
+  await axios.get(link, {
 
-                headers: {
-                  "User-Agent":
-                    "Mozilla/5.0"
-                },
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0"
+    },
 
-                timeout: 4000
+    timeout: 10000
 
-              });
+  });
 
             const $ =
               cheerio.load(response.data);

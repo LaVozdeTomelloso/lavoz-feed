@@ -9,14 +9,14 @@ module.exports = async (req, res) => {
 
     // DESCARGAR RSS ORIGINAL
     const rssResponse = await axios.get(
-  "https://lavozdetomelloso.com/rss",
-  {
-    headers: {
-      "User-Agent": "Mozilla/5.0"
-    },
-    timeout: 15000
-  }
-);
+      "https://lavozdetomelloso.com/rss",
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0"
+        },
+        timeout: 15000
+      }
+    );
 
     // PARSEAR RSS XML
     const rssData =
@@ -84,20 +84,21 @@ module.exports = async (req, res) => {
           try {
 
             const response =
-  await axios.get(link, {
+              await axios.get(link, {
 
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0"
-    },
+                headers: {
+                  "User-Agent":
+                    "Mozilla/5.0"
+                },
 
-    timeout: 10000
+                timeout: 10000
 
-  });
+              });
 
             const $ =
               cheerio.load(response.data);
-                        // TITULAR REAL
+
+            // TITULAR REAL
             const title =
               $("#titularN")
                 .first()
@@ -153,42 +154,92 @@ module.exports = async (req, res) => {
 
             }
 
+            // =====================================================
             // CONTENIDO
+            // =====================================================
+
             let articleContent = "";
 
-            $("p").each((i, el) => {
+            // -----------------------------------------------------
+            // EFEMÉRIDES
+            // -----------------------------------------------------
+            // Para las efemérides utilizamos directamente
+            // el contenido completo que llega en el RSS original.
+            // Así no se pierde ninguna efeméride al volver a
+            // extraer los párrafos de la página web.
+            // -----------------------------------------------------
 
-              const text =
-                $(el)
+            const esEfemerides =
+              title
+                .toLowerCase()
+                .startsWith("efemérides");
+
+            if (esEfemerides) {
+
+              const rawDescription =
+                item.description
+                  ? item.description[0]
+                  : "";
+
+              const $description =
+                cheerio.load(
+                  `<div>${rawDescription}</div>`,
+                  {
+                    decodeEntities: true
+                  }
+                );
+
+              articleContent =
+                $description("div")
                   .text()
                   .replace(/\s+/g, " ")
                   .trim();
 
-              if (
+            } else {
 
-                text.length > 80 &&
+              // ---------------------------------------------------
+              // RESTO DE NOTICIAS
+              // ---------------------------------------------------
 
-                !text.includes("Publicidad") &&
+              $("p").each((i, el) => {
 
-                !text.includes("Relacionados") &&
+                const text =
+                  $(el)
+                    .text()
+                    .replace(/\s+/g, " ")
+                    .trim();
 
-                !text.includes("WhatsApp") &&
+                if (
 
-                !text.includes("Facebook") &&
+                  text.length > 80 &&
 
-                !text.includes("Twitter") &&
+                  !text.includes("Publicidad") &&
 
-                !text.includes("Telegram")
+                  !text.includes("Relacionados") &&
 
-              ) {
+                  !text.includes("WhatsApp") &&
 
-                articleContent += `<p>${text}</p>`;
+                  !text.includes("Facebook") &&
 
-              }
+                  !text.includes("Twitter") &&
 
-            });
+                  !text.includes("Telegram")
 
+                ) {
+
+                  articleContent +=
+                    `<p>${text}</p>`;
+
+                }
+
+              });
+
+            }
+
+            // =====================================================
             // RESUMEN
+            // =====================================================
+
             const rawSummary =
               subtitle ||
               (
@@ -200,7 +251,10 @@ module.exports = async (req, res) => {
             const summary =
               `${category || "Noticias"}|||${rawSummary}`;
 
+            // =====================================================
             // CONTENIDO FINAL
+            // =====================================================
+
             const content = `
               ${
                 image
@@ -214,13 +268,14 @@ module.exports = async (req, res) => {
               }
               ${articleContent}
             `;
-                        // FECHA
+
+            // FECHA
             const pubDate =
               item.pubDate
                 ? new Date(item.pubDate[0])
                 : new Date();
 
-            // DEVOLVER EL ITEM (NO AÑADIRLO TODAVÍA)
+            // DEVOLVER EL ITEM
             return {
 
               title,
@@ -235,7 +290,8 @@ module.exports = async (req, res) => {
 
               author: [
                 {
-                  name: author || "La Voz"
+                  name:
+                    author || "La Voz"
                 }
               ],
 
@@ -264,13 +320,14 @@ module.exports = async (req, res) => {
 
       );
 
-      // AÑADIR SOLO LOS ITEMS VÁLIDOS
-      feedItems
-        .filter(Boolean)
-        .forEach(item =>
-          feed.addItem(item)
-        );
-        // GENERAR XML ATOM
+    // AÑADIR SOLO LOS ITEMS VÁLIDOS
+    feedItems
+      .filter(Boolean)
+      .forEach(item =>
+        feed.addItem(item)
+      );
+
+    // GENERAR XML ATOM
     let atomXml =
       feed.atom1();
 

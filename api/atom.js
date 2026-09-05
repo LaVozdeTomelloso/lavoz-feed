@@ -224,7 +224,10 @@ $("p").each((i, el) => {
     !text.includes("Twitter") &&
 
     !text.includes("Telegram")
-
+ !text.includes("Debe Iniciar Sesión") &&
+  !text.includes("Haga click para iniciar sesión") &&
+  !text.includes("Iniciar sesión") &&
+  !text.includes("para comentar")
   ) {
 
     articleContent +=

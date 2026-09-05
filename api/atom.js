@@ -201,38 +201,38 @@ module.exports = async (req, res) => {
               // RESTO DE NOTICIAS
               // ---------------------------------------------------
 
-              $("p").each((i, el) => {
+$("p").each((i, el) => {
 
-                const text =
-                  $(el)
-                    .text()
-                    .replace(/\s+/g, " ")
-                    .trim();
+  const text =
+    $(el)
+      .text()
+      .replace(/\s+/g, " ")
+      .trim();
 
-                if (
+  if (
 
-                  text.length > 80 &&
+    text.length > 0 &&
 
-                  !text.includes("Publicidad") &&
+    !text.includes("Publicidad") &&
 
-                  !text.includes("Relacionados") &&
+    !text.includes("Relacionados") &&
 
-                  !text.includes("WhatsApp") &&
+    !text.includes("WhatsApp") &&
 
-                  !text.includes("Facebook") &&
+    !text.includes("Facebook") &&
 
-                  !text.includes("Twitter") &&
+    !text.includes("Twitter") &&
 
-                  !text.includes("Telegram")
+    !text.includes("Telegram")
 
-                ) {
+  ) {
 
-                  articleContent +=
-                    `<p>${text}</p>`;
+    articleContent +=
+      `<p>${text}</p>`;
 
-                }
+  }
 
-              });
+});
 
             }
 

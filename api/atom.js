@@ -237,12 +237,33 @@ $("p").each((i, el) => {
 
 });
 
+                        }
+
+            // Si no se ha podido extraer el contenido de la página,
+            // usar como respaldo la descripción original del RSS.
+            if (
+              !articleContent.trim() &&
+              item.description &&
+              item.description[0]
+            ) {
+              const rawDescription = item.description[0];
+
+              const $description = cheerio.load(
+                `<div>${rawDescription}</div>`,
+                {
+                  decodeEntities: true
+                }
+              );
+
+              articleContent = $description("div")
+                .text()
+                .replace(/\s+/g, " ")
+                .trim();
             }
 
             // =====================================================
             // RESUMEN
             // =====================================================
-
             const rawSummary =
               subtitle ||
               (
